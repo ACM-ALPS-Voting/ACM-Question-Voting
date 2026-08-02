@@ -125,6 +125,11 @@
 <div class="wrap">
   <h1 class="eyebrow">Question Board — Teacher Admin</h1>
 
+  <!-- Shown only if a required script (Supabase, QR library) fails to load,
+       so a network/CDN problem is visible instead of the page just doing
+       nothing when buttons are clicked. -->
+  <div class="msg error hidden" id="scriptError"></div>
+
   <!-- ============================== QUICK LINKS ============================== -->
   <!-- Assumes submission.html, voting.html, and admin.html are hosted together
        in the same folder with these exact filenames (as the README sets them
@@ -235,7 +240,23 @@ const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
 /* ==========================================================================*/
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+function showLoadError(message) {
+  const el = document.getElementById('scriptError');
+  el.textContent = message;
+  el.classList.remove('hidden');
+  console.error(message);
+}
+
+// If this library failed to load (blocked network, offline, ad blocker,
+// etc.), stop here with a visible message rather than letting every button
+// on the page silently do nothing — this used to be a hard-to-diagnose bug.
+let supabase = null;
+if (window.supabase) {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} else {
+  showLoadError('Could not load the Supabase library from its CDN. Check your internet connection, or whether your network blocks cdn.jsdelivr.net — nothing on this page will work until that loads.');
+}
+
 const ALL_GRADES = ['3', '4', '5', '6'];
 
 let passphrase = null;          // held in memory only for this browser tab
@@ -266,8 +287,10 @@ function populateLinkBar() {
 }
 populateLinkBar();
 
-document.getElementById('generateQrBtn').addEventListener('click', generateQrCodes);
-document.getElementById('printQrBtn').addEventListener('click', () => window.print());
+const generateQrBtnEl = document.getElementById('generateQrBtn');
+const printQrBtnEl = document.getElementById('printQrBtn');
+if (generateQrBtnEl) generateQrBtnEl.addEventListener('click', generateQrCodes);
+if (printQrBtnEl) printQrBtnEl.addEventListener('click', () => window.print());
 
 function generateQrCodes() {
   const base = getBaseUrl();
@@ -323,8 +346,18 @@ document.getElementById('passInput').addEventListener('keydown', (e) => {
 });
 
 async function unlock() {
+  if (!supabase) {
+    loginMsg.className = 'msg error';
+    loginMsg.textContent = 'The page did not load correctly (see the message at the top). Try refreshing.';
+    return;
+  }
+
   const value = document.getElementById('passInput').value;
-  if (!value) return;
+  if (!value) {
+    loginMsg.className = 'msg error';
+    loginMsg.textContent = 'Enter the passphrase first.';
+    return;
+  }
 
   loginMsg.className = 'msg';
   loginMsg.textContent = '';
