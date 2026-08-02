@@ -248,15 +248,49 @@ function showLoadError(message) {
   console.error(message);
 }
 
-// If this library failed to load (blocked network, offline, ad blocker,
-// etc.), stop here with a visible message rather than letting every button
-// on the page silently do nothing — this used to be a hard-to-diagnose bug.
-let dbClient = null;
-if (window.supabase) {
-  dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} else {
-  showLoadError('Could not load the Supabase library from its CDN. Check your internet connection, or whether your network blocks cdn.jsdelivr.net — nothing on this page will work until that loads.');
+// Dynamically loads a <script> tag and resolves once it's actually loaded
+// (or rejects if it fails), so we can wait for it before doing anything
+// that depends on it.
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
 }
+
+// The <script> tag in <head> already tried loading the Supabase library
+// from jsdelivr. If that succeeded, window.supabase is already set and we
+// don't wait on anything further. If a network blocks that specific CDN
+// (common on school filters), this tries unpkg as a second attempt before
+// giving up — different CDNs are sometimes blocked independently of each
+// other, so trying a second one meaningfully improves the odds of working
+// on a locked-down network.
+async function ensureSupabaseLibrary() {
+  if (window.supabase) return true;
+  try {
+    await loadScript('https://unpkg.com/@supabase/supabase-js@2');
+  } catch (err) {
+    console.error(err);
+  }
+  return !!window.supabase;
+}
+
+// Everything else on this page waits for the library to be confirmed
+// available (or confirmed unavailable) before running, so buttons don't
+// get wired up against a client that was never created.
+(async function main() {
+  const loaded = await ensureSupabaseLibrary();
+
+  let dbClient = null;
+  if (loaded) {
+    dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else {
+    showLoadError('Could not load the Supabase library from either CDN it tried (jsdelivr and unpkg). Check your internet connection, or whether your network blocks these domains — nothing on this page will work until one of them loads.');
+    return; // no point wiring up buttons that all depend on dbClient
+  }
 
 const ALL_GRADES = ['3', '4', '5', '6'];
 
@@ -749,6 +783,8 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+})(); // end of main()
 </script>
 
 </body>

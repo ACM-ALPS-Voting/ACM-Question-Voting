@@ -141,6 +141,7 @@
 <div class="wrap">
   <h1 class="eyebrow">Question Board</h1>
   <p class="sub">Got a question? Add it to the board.</p>
+  <div class="msg" id="scriptError" style="max-width:480px; margin:0 auto 16px;"></div>
 
   <div class="card">
     <div class="pin"></div>
@@ -177,6 +178,46 @@
 const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
 /* ==========================================================================*/
+
+function showLoadError(message) {
+  const el = document.getElementById('scriptError');
+  el.className = 'msg error';
+  el.textContent = message;
+  console.error(message);
+}
+
+// Dynamically loads a <script> tag and resolves once it's actually loaded
+// (or rejects if it fails), so we can wait for it before doing anything
+// that depends on it.
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+// The <script> tag in <head> already tried loading the Supabase library
+// from jsdelivr. If a network blocks that specific CDN (common on school
+// filters), this tries unpkg as a second attempt before giving up.
+async function ensureSupabaseLibrary() {
+  if (window.supabase) return true;
+  try {
+    await loadScript('https://unpkg.com/@supabase/supabase-js@2');
+  } catch (err) {
+    console.error(err);
+  }
+  return !!window.supabase;
+}
+
+(async function main() {
+  const loaded = await ensureSupabaseLibrary();
+  if (!loaded) {
+    showLoadError('Could not load the Supabase library from either CDN it tried (jsdelivr and unpkg). Check your internet connection, or whether your network blocks these domains — this page will not work until one of them loads.');
+    return;
+  }
 
 const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -250,6 +291,8 @@ form.addEventListener('submit', async (e) => {
   form.reset();
   charCountEl.textContent = '0';
 });
+
+})(); // end of main()
 </script>
 
 </body>

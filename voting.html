@@ -124,11 +124,50 @@ const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
 /* ==========================================================================*/
 
-const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 const contentEl = document.getElementById('content');
 const sublineEl = document.getElementById('subline');
 const badgebarEl = document.getElementById('badgebar');
+
+function showLoadError(message) {
+  sublineEl.textContent = '';
+  contentEl.innerHTML = `<p class="empty">${message}</p>`;
+  console.error(message);
+}
+
+// Dynamically loads a <script> tag and resolves once it's actually loaded
+// (or rejects if it fails), so we can wait for it before doing anything
+// that depends on it.
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+// The <script> tag in <head> already tried loading the Supabase library
+// from jsdelivr. If a network blocks that specific CDN (common on school
+// filters), this tries unpkg as a second attempt before giving up.
+async function ensureSupabaseLibrary() {
+  if (window.supabase) return true;
+  try {
+    await loadScript('https://unpkg.com/@supabase/supabase-js@2');
+  } catch (err) {
+    console.error(err);
+  }
+  return !!window.supabase;
+}
+
+(async function main() {
+  const loaded = await ensureSupabaseLibrary();
+  if (!loaded) {
+    showLoadError('Could not load a required script. Check your internet connection and try again.');
+    return;
+  }
+
+const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ----------------------------------------------------------------------
  * HIDDEN GRADE FILTER
@@ -332,6 +371,8 @@ function escapeHtml(str) {
 }
 
 init();
+
+})(); // end of main()
 </script>
 
 </body>
