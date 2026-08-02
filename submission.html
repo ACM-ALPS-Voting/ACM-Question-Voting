@@ -12,7 +12,7 @@
 
 <!-- Supabase JS client, loaded from a CDN. This is the only "backend" the
      page has: it talks directly to your Supabase project over the internet. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@dbClient/dbClient-js@2"></script>
 
 <style>
   /* ---------------------------------------------------------------------
@@ -178,7 +178,7 @@ const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
 /* ==========================================================================*/
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const form       = document.getElementById('submitForm');
 const gradeEl     = document.getElementById('grade');
@@ -231,7 +231,7 @@ form.addEventListener('submit', async (e) => {
 
   // Calls the fn_submit_question database function (see schema.sql), which
   // validates the input server-side and stamps the row with a timestamp.
-  const { error } = await supabase.rpc('fn_submit_question', {
+  const { error } = await dbClient.rpc('fn_submit_question', {
     p_grade: grade,
     p_student_id: studentId,
     p_question: question,

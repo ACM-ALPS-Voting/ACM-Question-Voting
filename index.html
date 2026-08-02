@@ -7,7 +7,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@dbClient/dbClient-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
@@ -131,10 +131,11 @@
   <div class="msg error hidden" id="scriptError"></div>
 
   <!-- ============================== QUICK LINKS ============================== -->
-  <!-- Assumes submission.html, voting.html, and admin.html are hosted together
-       in the same folder with these exact filenames (as the README sets them
-       up). If you renamed a file or split them across folders, these links
-       (and the QR codes below) will need editing to match. -->
+  <!-- Assumes submission.html, voting.html, and this file (index.html) are
+       hosted together in the same folder with these exact filenames (as the
+       README sets them up). If you renamed a file or split them across
+       folders, these links (and the QR codes below) will need editing to
+       match. -->
   <div class="card">
     <h2>Pages</h2>
     <div class="linkbar" id="linkBar"></div>
@@ -250,9 +251,9 @@ function showLoadError(message) {
 // If this library failed to load (blocked network, offline, ad blocker,
 // etc.), stop here with a visible message rather than letting every button
 // on the page silently do nothing — this used to be a hard-to-diagnose bug.
-let supabase = null;
+let dbClient = null;
 if (window.supabase) {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } else {
   showLoadError('Could not load the Supabase library from its CDN. Check your internet connection, or whether your network blocks cdn.jsdelivr.net — nothing on this page will work until that loads.');
 }
@@ -265,12 +266,16 @@ let currentGrade = '3';
 /* --------------------------------------------------------------------
  * QUICK LINKS + QR CODES
  * These both assume submission.html and voting.html sit right next to
- * this admin.html file, which is how the README sets up hosting. If you
- * moved the files, edit BASE_URL below instead of relying on auto-detection.
+ * this file (index.html), which is how the README sets up hosting. If
+ * you moved the files, edit BASE_URL below instead of relying on
+ * auto-detection.
  * ------------------------------------------------------------------*/
 function getBaseUrl() {
-  // Turns ".../question-board/admin.html" into ".../question-board/"
-  return window.location.href.replace(/admin\.html.*$/, '');
+  // Resolves to the folder containing whatever file is currently loaded —
+  // works whether this page is reached as ".../index.html" or just
+  // ".../" (the usual way an index.html gets served), so it isn't tied
+  // to this file's name.
+  return new URL('.', window.location.href).href;
 }
 
 function populateLinkBar() {
@@ -346,7 +351,7 @@ document.getElementById('passInput').addEventListener('keydown', (e) => {
 });
 
 async function unlock() {
-  if (!supabase) {
+  if (!dbClient) {
     loginMsg.className = 'msg error';
     loginMsg.textContent = 'The page did not load correctly (see the message at the top). Try refreshing.';
     return;
@@ -365,7 +370,7 @@ async function unlock() {
   let result;
   try {
     // fn_get_rounds doubles as a passphrase check: wrong passphrase -> error.
-    result = await supabase.rpc('fn_get_rounds', { p_passphrase: value, p_grade: '3' });
+    result = await dbClient.rpc('fn_get_rounds', { p_passphrase: value, p_grade: '3' });
   } catch (err) {
     // A thrown error here (rather than a normal {error} response) usually
     // means the request never reached Supabase at all — wrong project URL,
@@ -427,7 +432,7 @@ async function renderRoundsForGrade(grade) {
   const el = document.getElementById('roundsContent');
   el.innerHTML = 'Loading…';
 
-  const { data: rounds, error } = await supabase.rpc('fn_get_rounds', { p_passphrase: passphrase, p_grade: grade });
+  const { data: rounds, error } = await dbClient.rpc('fn_get_rounds', { p_passphrase: passphrase, p_grade: grade });
   if (error) { el.innerHTML = `<p>Could not load rounds: ${escapeHtml(error.message)}</p>`; return; }
 
   el.innerHTML = buildRoundsHtml(grade, rounds);
@@ -500,12 +505,12 @@ async function startRound(grade) {
 
   if (grade === 'ALL') {
     const results = await Promise.all(ALL_GRADES.map(g =>
-      supabase.rpc('fn_start_round', { p_passphrase: passphrase, p_grade: g, p_votes_per_student: vps })
+      dbClient.rpc('fn_start_round', { p_passphrase: passphrase, p_grade: g, p_votes_per_student: vps })
     ));
     reportBatchResult(results, msgEl, 'started');
     renderOverallRounds();
   } else {
-    const { error } = await supabase.rpc('fn_start_round', { p_passphrase: passphrase, p_grade: grade, p_votes_per_student: vps });
+    const { error } = await dbClient.rpc('fn_start_round', { p_passphrase: passphrase, p_grade: grade, p_votes_per_student: vps });
     if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
     renderRoundsForGrade(grade);
   }
@@ -520,12 +525,12 @@ async function endRound(grade) {
 
   if (grade === 'ALL') {
     const results = await Promise.all(ALL_GRADES.map(g =>
-      supabase.rpc('fn_end_round', { p_passphrase: passphrase, p_grade: g })
+      dbClient.rpc('fn_end_round', { p_passphrase: passphrase, p_grade: g })
     ));
     reportBatchResult(results, msgEl, 'ended');
     renderOverallRounds();
   } else {
-    const { error } = await supabase.rpc('fn_end_round', { p_passphrase: passphrase, p_grade: grade });
+    const { error } = await dbClient.rpc('fn_end_round', { p_passphrase: passphrase, p_grade: grade });
     if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
     renderRoundsForGrade(grade);
     renderQuestionTable(grade);
@@ -551,7 +556,7 @@ async function renderOverallRounds() {
   el.innerHTML = 'Loading…';
 
   const results = await Promise.all(ALL_GRADES.map(g =>
-    supabase.rpc('fn_get_rounds', { p_passphrase: passphrase, p_grade: g })
+    dbClient.rpc('fn_get_rounds', { p_passphrase: passphrase, p_grade: g })
   ));
 
   // Controls that act on ALL grades at once — this is the actual "Overall"
@@ -589,7 +594,7 @@ async function renderQuestionTable(grade) {
   const empty = document.getElementById('tableEmpty');
   body.innerHTML = '';
 
-  const { data, error } = await supabase.rpc('fn_admin_list', { p_passphrase: passphrase, p_grade: grade });
+  const { data, error } = await dbClient.rpc('fn_admin_list', { p_passphrase: passphrase, p_grade: grade });
   if (error || !data || data.length === 0) {
     empty.classList.remove('hidden');
     return;
@@ -616,7 +621,7 @@ async function refreshEndVotingSection(grade) {
   const endBtn = document.getElementById('endVotingBtn');
   top5Wrap.classList.add('hidden');
 
-  const { data: statusRows } = await supabase.rpc('fn_get_round_status', { p_grade: grade });
+  const { data: statusRows } = await dbClient.rpc('fn_get_round_status', { p_grade: grade });
   const votingOpen = statusRows && statusRows[0] ? statusRows[0].voting_open : true;
 
   if (!votingOpen) {
@@ -633,7 +638,7 @@ async function refreshEndVotingSection(grade) {
 
 async function endVoting(grade) {
   if (!confirm(`End voting completely for Grade ${grade}? This cannot be undone.`)) return;
-  const { error } = await supabase.rpc('fn_end_voting', { p_passphrase: passphrase, p_grade: grade });
+  const { error } = await dbClient.rpc('fn_end_voting', { p_passphrase: passphrase, p_grade: grade });
   if (error) { alert(error.message); return; }
   await renderRoundsForGrade(grade);
   await renderQuestionTable(grade);
@@ -642,7 +647,7 @@ async function endVoting(grade) {
 }
 
 async function showTop5(grade) {
-  const { data } = await supabase.rpc('fn_admin_list', { p_passphrase: passphrase, p_grade: grade });
+  const { data } = await dbClient.rpc('fn_admin_list', { p_passphrase: passphrase, p_grade: grade });
   if (!data) return;
   const top5 = [...data].sort((a, b) => b.total_votes - a.total_votes).slice(0, 5);
 
@@ -665,12 +670,12 @@ async function refreshFinalVote() {
   msgEl.className = 'msg';
   el.innerHTML = 'Loading…';
 
-  const { data: statusRows } = await supabase.rpc('fn_get_final_status');
+  const { data: statusRows } = await dbClient.rpc('fn_get_final_status');
   const status = statusRows && statusRows[0] ? statusRows[0].status : 'not_started';
 
   // fn_get_final_results doubles as "are there candidates yet" — safe to
   // call even before the final round starts (returns an empty list).
-  const { data: results } = await supabase.rpc('fn_get_final_results', { p_passphrase: passphrase });
+  const { data: results } = await dbClient.rpc('fn_get_final_results', { p_passphrase: passphrase });
 
   if (status === 'not_started') {
     const closed = await allGradesClosed();
@@ -712,13 +717,13 @@ async function refreshFinalVote() {
 }
 
 async function allGradesClosed() {
-  const results = await Promise.all(ALL_GRADES.map(g => supabase.rpc('fn_get_round_status', { p_grade: g })));
+  const results = await Promise.all(ALL_GRADES.map(g => dbClient.rpc('fn_get_round_status', { p_grade: g })));
   return results.every(r => r.data && r.data[0] && r.data[0].voting_open === false);
 }
 
 async function startFinalVote() {
   if (!confirm('Start the final vote? This pulls each grade\'s current top question — make sure every grade has ended voting first.')) return;
-  const { error } = await supabase.rpc('fn_start_final_vote', { p_passphrase: passphrase });
+  const { error } = await dbClient.rpc('fn_start_final_vote', { p_passphrase: passphrase });
   const msgEl = document.getElementById('finalVoteMsg');
   if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
   refreshFinalVote();
@@ -726,7 +731,7 @@ async function startFinalVote() {
 
 async function endFinalVote() {
   if (!confirm('End the final vote? No more votes will be accepted.')) return;
-  const { error } = await supabase.rpc('fn_end_final_vote', { p_passphrase: passphrase });
+  const { error } = await dbClient.rpc('fn_end_final_vote', { p_passphrase: passphrase });
   const msgEl = document.getElementById('finalVoteMsg');
   if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
   refreshFinalVote();

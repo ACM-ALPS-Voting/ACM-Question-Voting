@@ -7,7 +7,8 @@ and run one SQL script once.
 **Files:**
 - `submission.html` — students submit questions
 - `voting.html` — students vote (grade comes from a hidden link/QR code)
-- `admin.html` — you manage rounds and see results
+- `index.html` — you manage rounds and see results (named `index.html` so it's
+  what loads automatically at your site's root URL, e.g. `your-site.example/`)
 - `schema.sql` — the database setup script (run once)
 
 ---
@@ -37,7 +38,7 @@ small supporting tables, and all the logic the three pages need.
 
 ## Step 4: Paste your details into each HTML file
 
-Open each of `submission.html`, `voting.html`, and `admin.html` in a text
+Open each of `submission.html`, `voting.html`, and `index.html` in a text
 editor. Near the top of each, inside a `<script>` tag, you'll see:
 
 ```js
@@ -78,7 +79,7 @@ Once hosted, you'll have three URLs, e.g.:
 ```
 https://your-site.example/submission.html
 https://your-site.example/voting.html
-https://your-site.example/admin.html
+https://your-site.example/index.html   (or just https://your-site.example/)
 ```
 
 ## Step 7: Make the grade-specific voting links / QR codes

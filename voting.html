@@ -7,7 +7,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@dbClient/dbClient-js@2"></script>
 
 <style>
   :root{
@@ -124,7 +124,7 @@ const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
 /* ==========================================================================*/
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const contentEl = document.getElementById('content');
 const sublineEl = document.getElementById('subline');
@@ -161,7 +161,7 @@ async function init() {
     return;
   }
 
-  const { data, error } = await supabase.rpc('fn_get_round_status', { p_grade: grade });
+  const { data, error } = await dbClient.rpc('fn_get_round_status', { p_grade: grade });
   if (error || !data || data.length === 0) {
     contentEl.innerHTML = '<p class="empty">Could not load voting status. Please try again later.</p>';
     return;
@@ -190,7 +190,7 @@ async function init() {
 }
 
 async function initFinal() {
-  const { data, error } = await supabase.rpc('fn_get_final_status');
+  const { data, error } = await dbClient.rpc('fn_get_final_status');
   const status = (!error && data && data[0]) ? data[0].status : null;
 
   badgebarEl.innerHTML = `<span class="badge">Final Vote</span>`;
@@ -230,8 +230,8 @@ async function loadQuestions() {
   }
 
   const { data: questions, error } = isFinal
-    ? await supabase.rpc('fn_list_final_candidates')
-    : await supabase.rpc('fn_list_open_questions', { p_grade: grade });
+    ? await dbClient.rpc('fn_list_final_candidates')
+    : await dbClient.rpc('fn_list_open_questions', { p_grade: grade });
   if (error) {
     msgEl.className = 'msg error';
     msgEl.textContent = 'Could not load questions. Please try again.';
@@ -308,8 +308,8 @@ async function castVotes(studentId) {
   castBtn.textContent = 'Submitting…';
 
   const { error } = isFinal
-    ? await supabase.rpc('fn_cast_final_vote', { p_student_id: studentId, p_candidate_id: selectedIds[0] })
-    : await supabase.rpc('fn_cast_votes', { p_grade: grade, p_student_id: studentId, p_question_ids: selectedIds });
+    ? await dbClient.rpc('fn_cast_final_vote', { p_student_id: studentId, p_candidate_id: selectedIds[0] })
+    : await dbClient.rpc('fn_cast_votes', { p_grade: grade, p_student_id: studentId, p_question_ids: selectedIds });
 
   castBtn.disabled = false;
   castBtn.textContent = 'Cast my votes';
