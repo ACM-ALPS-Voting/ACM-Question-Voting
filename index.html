@@ -327,12 +327,30 @@ async function unlock() {
   if (!value) return;
 
   loginMsg.className = 'msg';
-  // fn_get_rounds doubles as a passphrase check: wrong passphrase -> error.
-  const { error } = await supabase.rpc('fn_get_rounds', { p_passphrase: value, p_grade: '3' });
+  loginMsg.textContent = '';
 
+  let result;
+  try {
+    // fn_get_rounds doubles as a passphrase check: wrong passphrase -> error.
+    result = await supabase.rpc('fn_get_rounds', { p_passphrase: value, p_grade: '3' });
+  } catch (err) {
+    // A thrown error here (rather than a normal {error} response) usually
+    // means the request never reached Supabase at all — wrong project URL,
+    // no internet connection, or a CORS/network block.
+    loginMsg.className = 'msg error';
+    loginMsg.textContent = 'Could not reach the database. Check the SUPABASE_URL at the top of this file and your internet connection. (' + err.message + ')';
+    console.error('Unlock request failed:', err);
+    return;
+  }
+
+  const { error } = result;
   if (error) {
     loginMsg.className = 'msg error';
-    loginMsg.textContent = 'Incorrect passphrase.';
+    // Show the real database message rather than assuming it's always a
+    // wrong passphrase — e.g. "Could not find the function..." means
+    // schema.sql hasn't been run successfully yet.
+    loginMsg.textContent = error.message || 'Something went wrong.';
+    console.error('Unlock error:', error);
     return;
   }
 
