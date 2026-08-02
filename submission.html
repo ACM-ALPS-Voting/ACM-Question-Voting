@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Submit a Question</title>
+
+<!-- Google Fonts: a marker-style display face for headings, a clean rounded
+     face for body text — gives the page a classroom-bulletin-board feel. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Supabase JS client, loaded from a CDN. This is the only "backend" the
+     page has: it talks directly to your Supabase project over the internet. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* ---------------------------------------------------------------------
+     DESIGN TOKENS — cork-board / index-card theme shared across all three
+     pages so they feel like one product.
+  --------------------------------------------------------------------- */
+  :root{
+    --board:      #1F3A2E;   /* chalkboard green background        */
+    --board-line: #2C4C3B;   /* subtle board texture line          */
+    --card:       #FBF3E3;   /* cream index-card                   */
+    --ink:        #2B2B2B;   /* body text on cards                 */
+    --accent:     #E8604C;   /* marker coral — primary actions      */
+    --accent-dark:#C94A38;
+    --gold:       #F2C14E;   /* chalk yellow — badges/labels        */
+    --muted:      #8A9A90;
+    --error:      #C94A38;
+    --ok:         #4C8B5C;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% 20%, var(--board-line) 0, transparent 45%),
+      radial-gradient(circle at 80% 60%, var(--board-line) 0, transparent 40%),
+      var(--board);
+    font-family:'Nunito', sans-serif;
+    color: var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 32px 16px;
+  }
+  .wrap{ width:100%; max-width: 480px; }
+  h1.eyebrow{
+    font-family:'Patrick Hand', cursive;
+    color: var(--gold);
+    text-align:center;
+    font-size: 2rem;
+    margin: 0 0 4px;
+    letter-spacing: .5px;
+  }
+  p.sub{
+    text-align:center;
+    color: #DCE6DF;
+    margin: 0 0 24px;
+    font-weight:600;
+  }
+  /* the "index card" itself: cream card, slight rotation, pin dot, soft shadow */
+  .card{
+    background: var(--card);
+    border-radius: 6px;
+    padding: 32px 28px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.35), 0 2px 0 rgba(0,0,0,.05) inset;
+    transform: rotate(-0.6deg);
+    position: relative;
+  }
+  .pin{
+    position:absolute; top:-10px; left:50%; transform: translateX(-50%);
+    width:18px; height:18px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #ff8a75, var(--accent-dark));
+    box-shadow: 0 3px 6px rgba(0,0,0,.4);
+  }
+  label{
+    display:block;
+    font-weight: 800;
+    font-size: .82rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color:#5c6b60;
+    margin: 18px 0 6px;
+  }
+  label:first-of-type{ margin-top:0; }
+  input[type=text], textarea{
+    width:100%;
+    font-family:'Nunito', sans-serif;
+    font-size: 1rem;
+    padding: 12px 14px;
+    border: 2px solid #E3D9C2;
+    border-radius: 8px;
+    background:#fff;
+    color: var(--ink);
+    resize: vertical;
+  }
+  input[type=text]:focus, textarea:focus{
+    outline: none;
+    border-color: var(--accent);
+  }
+  .count{
+    text-align:right;
+    font-size:.78rem;
+    color: var(--muted);
+    margin-top:4px;
+  }
+  button{
+    margin-top: 24px;
+    width:100%;
+    padding: 14px;
+    font-family:'Nunito', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color:#fff;
+    background: var(--accent);
+    border:none;
+    border-radius: 10px;
+    cursor:pointer;
+    transition: transform .08s ease, background .15s ease;
+  }
+  button:hover:not(:disabled){ background: var(--accent-dark); }
+  button:active:not(:disabled){ transform: scale(.98); }
+  button:disabled{ opacity:.6; cursor:not-allowed; }
+  .msg{
+    margin-top:16px;
+    padding:12px 14px;
+    border-radius:8px;
+    font-weight:700;
+    font-size:.92rem;
+    display:none;
+  }
+  .msg.ok{ display:block; background:#E4F0E6; color: var(--ok); }
+  .msg.error{ display:block; background:#FBE4E1; color: var(--error); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1 class="eyebrow">Question Board</h1>
+  <p class="sub">Got a question? Add it to the board.</p>
+
+  <div class="card">
+    <div class="pin"></div>
+
+    <form id="submitForm">
+      <label for="grade">Your grade</label>
+      <select id="grade" style="width:100%; padding:12px 14px; border:2px solid #E3D9C2; border-radius:8px; font-family:'Nunito',sans-serif; font-size:1rem; background:#fff;">
+        <option value="">Choose your grade…</option>
+        <option value="3">3rd grade</option>
+        <option value="4">4th grade</option>
+        <option value="5">5th grade</option>
+        <option value="6">6th grade</option>
+      </select>
+
+      <label for="studentId">Your Student ID</label>
+      <input type="text" id="studentId" maxlength="30" placeholder="e.g. 123456" autocomplete="off">
+
+      <label for="question">Your question</label>
+      <textarea id="question" maxlength="200" rows="4" placeholder="Type your question here…"></textarea>
+      <div class="count"><span id="charCount">0</span>/200</div>
+
+      <button type="submit" id="submitBtn">Submit question</button>
+
+      <div class="msg" id="msg"></div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+ * CONFIG — EDIT THESE TWO LINES ONLY
+ * Find them in your Supabase project: Project Settings -> API
+ * ==========================================================================*/
+const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
+/* ==========================================================================*/
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const form       = document.getElementById('submitForm');
+const gradeEl     = document.getElementById('grade');
+const idEl        = document.getElementById('studentId');
+const questionEl  = document.getElementById('question');
+const charCountEl = document.getElementById('charCount');
+const submitBtn   = document.getElementById('submitBtn');
+const msgEl       = document.getElementById('msg');
+
+// Live character counter for the question box.
+questionEl.addEventListener('input', () => {
+  charCountEl.textContent = questionEl.value.length;
+});
+
+// Look up the visitor's public IP address. This has to happen client-side
+// because these pages have no server of their own; ipify is a free, no-key
+// service made for exactly this. If it fails for any reason we just store
+// "unknown" rather than blocking the submission.
+async function getIpAddress() {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    return data.ip;
+  } catch (err) {
+    return 'unknown';
+  }
+}
+
+function showMessage(text, type) {
+  msgEl.textContent = text;
+  msgEl.className = 'msg ' + type;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msgEl.className = 'msg';
+
+  const grade = gradeEl.value;
+  const studentId = idEl.value.trim();
+  const question = questionEl.value.trim();
+
+  if (!grade) { showMessage('Please choose your grade.', 'error'); return; }
+  if (!studentId) { showMessage('Please enter your Student ID.', 'error'); return; }
+  if (!question) { showMessage('Please type a question.', 'error'); return; }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting…';
+
+  const ip = await getIpAddress();
+
+  // Calls the fn_submit_question database function (see schema.sql), which
+  // validates the input server-side and stamps the row with a timestamp.
+  const { error } = await supabase.rpc('fn_submit_question', {
+    p_grade: grade,
+    p_student_id: studentId,
+    p_question: question,
+    p_ip: ip
+  });
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Submit question';
+
+  if (error) {
+    showMessage(error.message || 'Something went wrong. Please try again.', 'error');
+    return;
+  }
+
+  showMessage('Your question was added to the board!', 'ok');
+  form.reset();
+  charCountEl.textContent = '0';
+});
+</script>
+
+</body>
+</html>
