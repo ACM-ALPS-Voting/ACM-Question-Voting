@@ -1,0 +1,21 @@
+name: Keep Supabase Alive
+
+# Free-tier Supabase projects pause automatically after 7 days with no
+# database activity. This workflow just pings the project's API every 3
+# days — well inside that window — so it never has a chance to pause.
+# It's read-only and doesn't touch any of your data.
+
+on:
+  schedule:
+    - cron: '0 8 */3 * *'   # every 3 days at 8:00 AM UTC
+  workflow_dispatch:         # lets you trigger it manually from the Actions tab too
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -s "https://mpdmxvqaryjvdxrajigy.supabase.co/rest/v1/" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko" \
+            -o /dev/null -w "Ping status: %{http_code}\n"
