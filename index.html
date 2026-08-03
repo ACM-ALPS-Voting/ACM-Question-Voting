@@ -36,7 +36,30 @@
     color: var(--ink);
     padding: 32px 16px 80px;
   }
-  .wrap{ width:100%; max-width: 860px; margin:0 auto; }
+  /* ------------------------- overall page layout ------------------------- */
+  /* .page is the two-column shell: a left sidebar (quick links) plus the
+     main content column (.wrap, unchanged from before). On narrow screens
+     the media query below stacks the sidebar on top instead of beside. */
+  .page{
+    width:100%; max-width: 1080px; margin:0 auto;
+    display:flex; align-items:flex-start; gap:24px;
+  }
+  .sidebar{
+    flex: 0 0 200px;               /* fixed width, doesn't grow/shrink */
+    position: sticky; top: 24px;    /* stays in view while the page scrolls */
+  }
+  .sidebar h2{ font-family:'Patrick Hand', cursive; font-size:1.3rem; margin:0 0 14px; color:#3d4f43; text-align:center; }
+  .wrap{ flex:1 1 auto; min-width:0; max-width: 860px; margin:0; }
+
+  @media (max-width: 760px){
+    /* Below tablet width there isn't room for a side column, so the
+       sidebar drops above the main content and its links lay out in a
+       wrapping row instead of a stacked list. */
+    .page{ flex-direction:column; }
+    .sidebar{ position:static; width:100%; }
+    .sidebar .linkbar{ flex-direction:row; }
+    .sidebar .linkbar a{ flex:1 1 auto; }
+  }
   h1.eyebrow{
     font-family:'Patrick Hand', cursive; color: var(--gold);
     text-align:center; font-size: 2.1rem; margin: 0 0 24px;
@@ -95,11 +118,13 @@
   .hidden{ display:none; }
 
   /* --------------------------- quick links bar --------------------------- */
-  .linkbar{ display:flex; flex-wrap:wrap; gap:10px; }
+  /* Stacked vertically by default now that this lives in the sidebar; the
+     mobile media query above switches it back to a horizontal row. */
+  .linkbar{ display:flex; flex-direction:column; flex-wrap:wrap; gap:10px; }
   .linkbar a{
     display:inline-block; background:#fff; border:2px solid var(--line); border-radius:8px;
     padding:9px 14px; font-weight:800; font-size:.88rem; color: var(--accent-dark);
-    text-decoration:none;
+    text-decoration:none; text-align:center;
   }
   .linkbar a:hover{ border-color: var(--accent); }
 
@@ -122,6 +147,23 @@
 </head>
 <body>
 
+<div class="page">
+
+  <!-- ============================== SIDEBAR ============================== -->
+  <!-- Quick links, moved here from a card at the top of the page. Sits
+       outside the login gate on purpose (same as before the move) — these
+       are just navigation shortcuts, not admin-only actions, so they're
+       visible whether or not the teacher has unlocked the dashboard yet.
+       Assumes submission.html, voting.html, and this file (index.html) are
+       hosted together in the same folder with these exact filenames (as the
+       README sets them up). If you renamed a file or split them across
+       folders, these links (and the QR codes below) will need editing to
+       match. -->
+  <aside class="sidebar card">
+    <h2>Pages</h2>
+    <nav class="linkbar" id="linkBar"></nav>
+  </aside>
+
 <div class="wrap">
   <h1 class="eyebrow">Question Board — Teacher Admin</h1>
 
@@ -129,17 +171,6 @@
        so a network/CDN problem is visible instead of the page just doing
        nothing when buttons are clicked. -->
   <div class="msg error hidden" id="scriptError"></div>
-
-  <!-- ============================== QUICK LINKS ============================== -->
-  <!-- Assumes submission.html, voting.html, and this file (index.html) are
-       hosted together in the same folder with these exact filenames (as the
-       README sets them up). If you renamed a file or split them across
-       folders, these links (and the QR codes below) will need editing to
-       match. -->
-  <div class="card">
-    <h2>Pages</h2>
-    <div class="linkbar" id="linkBar"></div>
-  </div>
 
   <!-- ============================== LOGIN GATE ============================== -->
   <div class="card" id="loginCard">
@@ -172,6 +203,52 @@
         "Overall" applies Start Round / End Round / End Voting to every grade at once, overriding
         whatever each grade was doing individually.
       </p>
+    </div>
+
+    <!-- ============================== STUDENT LOOKUP ============================== -->
+    <!-- Lets the teacher pull up a single student's activity by ID: what
+         they submitted and how it did in voting, plus everything they
+         voted for, broken down by round. Independent of the grade dropdown
+         above — a student ID is looked up across all grades at once, since
+         the teacher may not remember (or the tool shouldn't require) which
+         grade a given student is in. -->
+    <div class="card">
+      <h2>Student lookup</h2>
+      <div class="row">
+        <div>
+          <label for="studentLookupInput">Student ID</label>
+          <input type="text" id="studentLookupInput" placeholder="e.g. 1042">
+        </div>
+        <button id="studentLookupBtn" style="margin-top:22px;">Look up student</button>
+      </div>
+      <div class="msg" id="studentLookupMsg"></div>
+
+      <div class="hidden" id="studentLookupResults" style="margin-top:20px;">
+        <h2 id="studentLookupHeading" style="margin-bottom:4px;"></h2>
+
+        <!-- Table 1: what this student submitted, and how the votes it
+             received break down round-by-round plus in total. -->
+        <h2 style="font-size:1.1rem;">Questions submitted &amp; votes received</h2>
+        <table>
+          <thead>
+            <tr><th>Grade</th><th>Question</th><th>Status</th><th>Votes by round</th><th>Total Votes</th></tr>
+          </thead>
+          <tbody id="studentQuestionsBody"></tbody>
+        </table>
+        <p id="studentQuestionsEmpty" class="hidden" style="color:#5c6b60; font-weight:700;">This student hasn't submitted a question.</p>
+
+        <!-- Table 2: everything this student voted for, one row per vote,
+             grouped/sorted by grade then round so history reads top to
+             bottom in chronological order. -->
+        <h2 style="font-size:1.1rem; margin-top:22px;">Votes cast, by round</h2>
+        <table>
+          <thead>
+            <tr><th>Grade</th><th>Round</th><th>Voted for</th><th>Submitted by</th></tr>
+          </thead>
+          <tbody id="studentVotesBody"></tbody>
+        </table>
+        <p id="studentVotesEmpty" class="hidden" style="color:#5c6b60; font-weight:700;">This student hasn't cast any votes.</p>
+      </div>
     </div>
 
     <div class="card" id="roundsCard">
@@ -251,7 +328,8 @@
     </div>
 
   </div>
-</div>
+</div><!-- /.wrap -->
+</div><!-- /.page -->
 
 <script>
 /* ============================================================================
@@ -501,6 +579,16 @@ async function unlock(silent = false) {
   saveSession(value);
   loginCard.classList.add('hidden');
   dashboard.classList.remove('hidden');
+
+  // The <select> itself survives a page refresh (browsers restore form
+  // control values on their own), but the currentGrade variable does not —
+  // it always starts back at the '3' it was declared with. Without this
+  // line, that mismatch is exactly what caused the dashboard to silently
+  // reload Grade 3's data while the dropdown kept showing whatever grade
+  // was last selected. Reading the select's live value here keeps the two
+  // in sync on every load, refresh or not.
+  currentGrade = gradeSelect.value || '3';
+
   loadGrade(currentGrade);
   refreshFinalVote();
   refreshArchiveReset();
@@ -544,6 +632,128 @@ async function loadGrade(grade) {
     await renderQuestionTable(grade);
     await refreshEndVotingSection(grade);
   }
+}
+
+/* --------------------------------------------------------------------
+ * STUDENT LOOKUP
+ * Independent of the grade dropdown — looks a student ID up across every
+ * grade in one call, since the teacher shouldn't have to know/select the
+ * right grade first just to find one student.
+ *
+ * Relies on a new database function, fn_admin_student_lookup, which is NOT
+ * part of the original schema this page shipped with. See the accompanying
+ * student_lookup.sql for the function to add in the Supabase SQL editor —
+ * it's written to match the table/column names implied by the other RPCs
+ * on this page (questions / votes / rounds), but you should sanity-check
+ * it against your actual schema before running it, since this page alone
+ * doesn't show that schema.
+ *
+ * Expected shape of the JSON the RPC returns:
+ * {
+ *   "questions": [
+ *     { "grade": "4", "question": "...", "eliminated": false,
+ *       "total_votes": 7, "votes_by_round": [{"round_number":1,"votes":3}, ...] }
+ *   ],
+ *   "votes_cast": [
+ *     { "grade": "4", "round_number": 2, "question": "...", "author_student_id": "1099" }
+ *   ]
+ * }
+ * ------------------------------------------------------------------*/
+const studentLookupBtn = document.getElementById('studentLookupBtn');
+const studentLookupInput = document.getElementById('studentLookupInput');
+
+studentLookupBtn.addEventListener('click', () => runStudentLookup());
+studentLookupInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runStudentLookup();
+});
+
+function runStudentLookup() {
+  const id = studentLookupInput.value.trim();
+  const msgEl = document.getElementById('studentLookupMsg');
+  if (!id) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = 'Enter a student ID first.';
+    return;
+  }
+  lookupStudent(id);
+}
+
+async function lookupStudent(studentId) {
+  const msgEl = document.getElementById('studentLookupMsg');
+  const resultsEl = document.getElementById('studentLookupResults');
+  msgEl.className = 'msg';
+  msgEl.textContent = '';
+  resultsEl.classList.add('hidden');
+
+  const { data, error } = await dbClient.rpc('fn_admin_student_lookup', {
+    p_passphrase: passphrase,
+    p_student_id: studentId
+  });
+
+  if (error) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = error.message;
+    return;
+  }
+
+  const questions = (data && data.questions) || [];
+  const votesCast = (data && data.votes_cast) || [];
+
+  if (questions.length === 0 && votesCast.length === 0) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = `No records found for student ID "${studentId}".`;
+    return;
+  }
+
+  document.getElementById('studentLookupHeading').textContent = `Student ${studentId}`;
+
+  // ---- Table 1: questions submitted + votes received ----
+  const qBody = document.getElementById('studentQuestionsBody');
+  const qEmpty = document.getElementById('studentQuestionsEmpty');
+  qBody.innerHTML = '';
+  if (questions.length === 0) {
+    qEmpty.classList.remove('hidden');
+  } else {
+    qEmpty.classList.add('hidden');
+    questions.forEach(q => {
+      const roundBreakdown = (q.votes_by_round || [])
+        .map(v => `R${v.round_number}: ${v.votes}`)
+        .join(', ') || '—';
+      const tr = document.createElement('tr');
+      if (q.eliminated) tr.className = 'eliminated';
+      tr.innerHTML = `
+        <td>Grade ${escapeHtml(String(q.grade))}</td>
+        <td>${escapeHtml(q.question)} ${q.eliminated ? '<span class="tag">out</span>' : ''}</td>
+        <td>${q.eliminated ? 'Eliminated' : 'Active'}</td>
+        <td>${escapeHtml(roundBreakdown)}</td>
+        <td>${q.total_votes}</td>`;
+      qBody.appendChild(tr);
+    });
+  }
+
+  // ---- Table 2: votes cast, by round ----
+  const vBody = document.getElementById('studentVotesBody');
+  const vEmpty = document.getElementById('studentVotesEmpty');
+  vBody.innerHTML = '';
+  if (votesCast.length === 0) {
+    vEmpty.classList.remove('hidden');
+  } else {
+    vEmpty.classList.add('hidden');
+    // Sort by grade then round so the history reads chronologically.
+    [...votesCast]
+      .sort((a, b) => String(a.grade).localeCompare(String(b.grade)) || a.round_number - b.round_number)
+      .forEach(v => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>Grade ${escapeHtml(String(v.grade))}</td>
+          <td>${ordinalWord(v.round_number)}</td>
+          <td>${escapeHtml(v.question)}</td>
+          <td>${escapeHtml(v.author_student_id)}</td>`;
+        vBody.appendChild(tr);
+      });
+  }
+
+  resultsEl.classList.remove('hidden');
 }
 
 /* --------------------------------------------------------------------
