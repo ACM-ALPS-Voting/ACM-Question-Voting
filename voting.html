@@ -342,6 +342,19 @@ async function castVotes(studentId) {
     return;
   }
 
+  // Votes aren't required to be fully used, but a student who only meant
+  // to pick 1 of their 3 votes by mistake should get a chance to go back
+  // before it's locked in — so confirm rather than submitting silently.
+  if (selectedIds.length < votesAllowed) {
+    const remaining = votesAllowed - selectedIds.length;
+    const proceed = confirm(
+      `You have ${remaining} vote${remaining === 1 ? '' : 's'} left unused ` +
+      `(you picked ${selectedIds.length} of ${votesAllowed}). ` +
+      `Submit anyway?`
+    );
+    if (!proceed) return;
+  }
+
   const castBtn = document.getElementById('castBtn');
   castBtn.disabled = true;
   castBtn.textContent = 'Submitting…';
