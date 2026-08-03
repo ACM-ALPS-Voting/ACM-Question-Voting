@@ -14,8 +14,10 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase
-        run: |
-          curl -s "https://mpdmxvqaryjvdxrajigy.supabase.co/rest/v1/" \
+    - name: Ping Supabase
+      run: |
+          curl -s -X POST "https://mpdmxvqaryjvdxrajigy.supabase.co/rest/v1/rpc/fn_get_archive_dates" \
             -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
             -o /dev/null -w "Ping status: %{http_code}\n"
