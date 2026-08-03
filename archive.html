@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Question Board — Archive</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root{
+    --board:      #1F3A2E;
+    --board-line: #2C4C3B;
+    --card:       #FBF3E3;
+    --ink:        #2B2B2B;
+    --accent:     #E8604C;
+    --accent-dark:#C94A38;
+    --gold:       #F2C14E;
+    --muted:      #8A9A90;
+    --error:      #C94A38;
+    --ok:         #4C8B5C;
+    --line:       #E3D9C2;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% 20%, var(--board-line) 0, transparent 45%),
+      radial-gradient(circle at 80% 60%, var(--board-line) 0, transparent 40%),
+      var(--board);
+    font-family:'Nunito', sans-serif;
+    color: var(--ink);
+    padding: 32px 16px 60px;
+  }
+  .wrap{ width:100%; max-width: 780px; margin: 0 auto; }
+  h1.eyebrow{
+    font-family:'Patrick Hand', cursive;
+    color: var(--gold);
+    text-align:center;
+    font-size: 2rem;
+    margin: 0 0 4px;
+  }
+  .sub{ text-align:center; color:#DCE6DF; font-weight:700; margin:0 0 24px; }
+  .card{
+    background: var(--card);
+    border-radius: 8px;
+    padding: 28px 24px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    position:relative;
+  }
+  .pin{
+    position:absolute; top:-10px; left:50%; transform: translateX(-50%);
+    width:18px; height:18px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #ff8a75, var(--accent-dark));
+    box-shadow: 0 3px 6px rgba(0,0,0,.4);
+  }
+  label{
+    display:block; font-weight:800; font-size:.8rem; text-transform:uppercase;
+    letter-spacing:.06em; color:#5c6b60; margin: 0 0 6px;
+  }
+  select{
+    width:100%; font-family:'Nunito',sans-serif; font-size:1rem;
+    padding:12px 14px; border:2px solid var(--line); border-radius:8px; background:#fff;
+  }
+  select:focus{ outline:none; border-color: var(--accent); }
+
+  table{ width:100%; border-collapse: collapse; margin-top: 22px; }
+  th, td{ text-align:left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size:.92rem; }
+  th{ text-transform:uppercase; font-size:.72rem; letter-spacing:.05em; color:#5c6b60; }
+  .grade-cell{ font-family:'Patrick Hand', cursive; font-size:1.15rem; }
+  .rank-1{ font-weight:800; }
+  .medal{ margin-right:4px; }
+
+  .empty{ text-align:center; color:#5c6b60; font-weight:700; padding: 30px 0; }
+  .hidden{ display:none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1 class="eyebrow">Question Board — Archive</h1>
+  <p class="sub">Past winning questions, by grade</p>
+
+  <div class="card">
+    <div class="pin"></div>
+
+    <label for="dateSelect">Pick an archived date</label>
+    <select id="dateSelect"></select>
+
+    <div id="resultsWrap"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+ * CONFIG — EDIT THESE TWO LINES ONLY (same values as the other pages)
+ * ==========================================================================*/
+const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
+/* ==========================================================================*/
+
+const dateSelect = document.getElementById('dateSelect');
+const resultsWrap = document.getElementById('resultsWrap');
+
+function showLoadError(message) {
+  resultsWrap.innerHTML = `<p class="empty">${message}</p>`;
+  console.error(message);
+}
+
+// Dynamically loads a <script> tag and resolves once it's actually loaded
+// (or rejects if it fails), so we can wait for it before doing anything
+// that depends on it.
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+// The <script> tag in <head> already tried loading the Supabase library
+// from jsdelivr. If a network blocks that specific CDN (common on school
+// filters), this tries unpkg as a second attempt before giving up.
+async function ensureSupabaseLibrary() {
+  if (window.supabase) return true;
+  try {
+    await loadScript('https://unpkg.com/@supabase/supabase-js@2');
+  } catch (err) {
+    console.error(err);
+  }
+  return !!window.supabase;
+}
+
+(async function main() {
+  const loaded = await ensureSupabaseLibrary();
+  if (!loaded) {
+    showLoadError('Could not load a required script. Check your internet connection and try again.');
+    return;
+  }
+
+const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const GRADE_LABELS = { '3': 'Grade 3', '4': 'Grade 4', '5': 'Grade 5', '6': 'Grade 6', 'FINAL': 'Final Vote' };
+const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+async function init() {
+  const { data, error } = await dbClient.rpc('fn_get_archive_dates');
+  if (error) {
+    showLoadError('Could not load the archive. ' + error.message);
+    return;
+  }
+  if (!data || data.length === 0) {
+    dateSelect.classList.add('hidden');
+    resultsWrap.innerHTML = '<p class="empty">Nothing has been archived yet.</p>';
+    return;
+  }
+
+  dateSelect.innerHTML = data.map(row => `
+    <option value="${row.archive_batch}">${formatDate(row.archived_at)}</option>
+  `).join('');
+
+  dateSelect.addEventListener('change', () => loadArchive(dateSelect.value));
+  loadArchive(dateSelect.value);
+}
+
+async function loadArchive(batch) {
+  resultsWrap.innerHTML = '<p class="empty">Loading…</p>';
+
+  const { data, error } = await dbClient.rpc('fn_get_archive', { p_archive_batch: Number(batch) });
+  if (error) {
+    showLoadError('Could not load this archive. ' + error.message);
+    return;
+  }
+  if (!data || data.length === 0) {
+    resultsWrap.innerHTML = '<p class="empty">No rows found for this date.</p>';
+    return;
+  }
+
+  const rowsHtml = data.map(row => `
+    <tr>
+      <td class="grade-cell">${escapeHtml(GRADE_LABELS[row.grade] || row.grade)}</td>
+      <td class="${row.rank === 1 ? 'rank-1' : ''}">
+        <span class="medal">${MEDALS[row.rank] || ''}</span>${escapeHtml(row.question)}
+      </td>
+      <td>${escapeHtml(row.student_id)}</td>
+      <td>${row.votes}</td>
+    </tr>`).join('');
+
+  resultsWrap.innerHTML = `
+    <table>
+      <thead><tr><th>Grade</th><th>Question</th><th>Student ID</th><th>Votes</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+}
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) +
+    ' at ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+init();
+
+})(); // end of main()
+</script>
+
+</body>
+</html>

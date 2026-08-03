@@ -155,6 +155,10 @@
   <!-- ============================== DASHBOARD ============================== -->
   <div id="dashboard" class="hidden">
 
+    <div class="row" style="justify-content:flex-end; margin-bottom:-8px;">
+      <button class="ghost" id="lockBtn" type="button">Lock</button>
+    </div>
+
     <div class="card">
       <h2>Grade</h2>
       <select id="gradeSelect">
@@ -210,6 +214,22 @@
       </p>
       <div id="finalVoteContent">Loading…</div>
       <div class="msg" id="finalVoteMsg"></div>
+    </div>
+
+    <!-- Archive & Reset: saves the top 3 per grade (+ FINAL, if it ran) as a
+         permanent snapshot, then wipes every submission/vote so the board is
+         ready for a brand new cycle. Only enabled once all four grades have
+         ended their voting, same unlock condition as Final Vote above. -->
+    <div class="card">
+      <h2>Archive &amp; reset</h2>
+      <p style="font-size:.9rem; color:#5c6b60;">
+        Saves the top 3 questions per grade (and the final vote result, if one ran) to a
+        permanent archive, then <strong>permanently deletes</strong> every question, vote, and
+        round so the board is ready to start over. View saved archives on the
+        <a href="archive.html" target="_blank">archive page</a>.
+      </p>
+      <div id="archiveResetContent">Loading…</div>
+      <div class="msg" id="archiveResetMsg"></div>
     </div>
 
     <!-- QR codes for each grade's voting link, plus one for the final vote.
@@ -322,6 +342,7 @@ function populateLinkBar() {
     <a href="${base}voting.html?grade=5" target="_blank">Voting — Grade 5 ↗</a>
     <a href="${base}voting.html?grade=6" target="_blank">Voting — Grade 6 ↗</a>
     <a href="${base}voting.html?grade=FINAL" target="_blank">Voting — Final ↗</a>
+    <a href="${base}archive.html" target="_blank">Archive ↗</a>
   `;
 }
 populateLinkBar();
@@ -378,28 +399,76 @@ const dashboard   = document.getElementById('dashboard');
 const loginMsg    = document.getElementById('loginMsg');
 const gradeSelect = document.getElementById('gradeSelect');
 
+/* ----------------------------------------------------------------------
+ * SESSION PERSISTENCE
+ * Remembers the passphrase in this browser tab so refreshing the page
+ * doesn't ask for it again. Uses sessionStorage rather than localStorage,
+ * which means it's automatically cleared the moment the tab or browser is
+ * closed — on top of that, it also expires on its own after ADMIN_SESSION_HOURS
+ * even if the tab is left open, and there's a manual "Lock" button below for
+ * ending it early before walking away from the computer.
+ * --------------------------------------------------------------------*/
+const ADMIN_SESSION_HOURS = 8; // change this if you want a shorter/longer window
+const SESSION_KEY = 'qb_admin_session';
+
+function saveSession(value) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+    passphrase: value,
+    expiresAt: Date.now() + ADMIN_SESSION_HOURS * 60 * 60 * 1000
+  }));
+}
+
+function loadSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed.expiresAt || Date.now() > parsed.expiresAt) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed.passphrase;
+  } catch (err) {
+    return null;
+  }
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
 /* ----------------------------- LOGIN ----------------------------- */
-document.getElementById('unlockBtn').addEventListener('click', unlock);
+document.getElementById('unlockBtn').addEventListener('click', () => unlock());
 document.getElementById('passInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') unlock();
 });
 
-async function unlock() {
+// silent=true is used for the automatic on-load attempt with a remembered
+// passphrase: on failure it just clears the stale session and quietly shows
+// the login screen, rather than flashing an error the teacher never typed
+// anything to cause.
+async function unlock(silent = false) {
   if (!dbClient) {
-    loginMsg.className = 'msg error';
-    loginMsg.textContent = 'The page did not load correctly (see the message at the top). Try refreshing.';
+    if (!silent) {
+      loginMsg.className = 'msg error';
+      loginMsg.textContent = 'The page did not load correctly (see the message at the top). Try refreshing.';
+    }
     return;
   }
 
-  const value = document.getElementById('passInput').value;
+  const value = silent ? loadSession() : document.getElementById('passInput').value;
   if (!value) {
-    loginMsg.className = 'msg error';
-    loginMsg.textContent = 'Enter the passphrase first.';
+    if (!silent) {
+      loginMsg.className = 'msg error';
+      loginMsg.textContent = 'Enter the passphrase first.';
+    }
     return;
   }
 
-  loginMsg.className = 'msg';
-  loginMsg.textContent = '';
+  if (!silent) {
+    loginMsg.className = 'msg';
+    loginMsg.textContent = '';
+  }
 
   let result;
   try {
@@ -409,6 +478,7 @@ async function unlock() {
     // A thrown error here (rather than a normal {error} response) usually
     // means the request never reached Supabase at all — wrong project URL,
     // no internet connection, or a CORS/network block.
+    if (silent) { clearSession(); return; }
     loginMsg.className = 'msg error';
     loginMsg.textContent = 'Could not reach the database. Check the SUPABASE_URL at the top of this file and your internet connection. (' + err.message + ')';
     console.error('Unlock request failed:', err);
@@ -417,6 +487,7 @@ async function unlock() {
 
   const { error } = result;
   if (error) {
+    if (silent) { clearSession(); return; }
     loginMsg.className = 'msg error';
     // Show the real database message rather than assuming it's always a
     // wrong passphrase — e.g. "Could not find the function..." means
@@ -427,11 +498,27 @@ async function unlock() {
   }
 
   passphrase = value;
+  saveSession(value);
   loginCard.classList.add('hidden');
   dashboard.classList.remove('hidden');
   loadGrade(currentGrade);
   refreshFinalVote();
+  refreshArchiveReset();
 }
+
+function lock() {
+  clearSession();
+  passphrase = null;
+  document.getElementById('passInput').value = '';
+  dashboard.classList.add('hidden');
+  loginCard.classList.remove('hidden');
+}
+
+document.getElementById('lockBtn').addEventListener('click', lock);
+
+// Try to auto-unlock with a remembered passphrase before showing the login
+// screen at all — most refreshes should skip straight to the dashboard.
+unlock(/* silent = */ true);
 
 /* ------------------------- GRADE SWITCHING ------------------------ */
 gradeSelect.addEventListener('change', () => {
@@ -678,6 +765,7 @@ async function endVoting(grade) {
   await renderQuestionTable(grade);
   await refreshEndVotingSection(grade);
   await refreshFinalVote(); // ending this grade might be the last one needed to unlock it
+  await refreshArchiveReset();
 }
 
 async function showTop5(grade) {
@@ -761,6 +849,7 @@ async function startFinalVote() {
   const msgEl = document.getElementById('finalVoteMsg');
   if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
   refreshFinalVote();
+  refreshArchiveReset();
 }
 
 async function endFinalVote() {
@@ -769,6 +858,63 @@ async function endFinalVote() {
   const msgEl = document.getElementById('finalVoteMsg');
   if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
   refreshFinalVote();
+  refreshArchiveReset(); // ending the final vote is also what unlocks archiving
+}
+
+/* --------------------------------------------------------------------
+ * ARCHIVE & RESET (independent of the grade dropdown — spans all grades)
+ * ------------------------------------------------------------------*/
+async function refreshArchiveReset() {
+  const el = document.getElementById('archiveResetContent');
+  const msgEl = document.getElementById('archiveResetMsg');
+  msgEl.className = 'msg';
+  el.innerHTML = 'Loading…';
+
+  const closed = await allGradesClosed();
+  if (!closed) {
+    el.innerHTML = `<p style="color:#5c6b60; font-weight:700;">Unlocks once all four grades have had their voting ended.</p>`;
+    return;
+  }
+
+  const { data: statusRows } = await dbClient.rpc('fn_get_final_status');
+  const finalStatus = statusRows && statusRows[0] ? statusRows[0].status : 'not_started';
+
+  if (finalStatus === 'active') {
+    el.innerHTML = `<p style="color:#5c6b60; font-weight:700;">The final vote is still active — end it above before archiving.</p>`;
+    return;
+  }
+
+  el.innerHTML = `<button class="danger" id="archiveResetBtn">Archive top questions &amp; reset everything</button>`;
+  document.getElementById('archiveResetBtn').addEventListener('click', archiveAndReset);
+}
+
+async function archiveAndReset() {
+  // Two confirmations given this permanently deletes data — a single
+  // dialog is what every other action here uses, but this one is
+  // irreversible in a way that losing a round or a vote isn't.
+  const step1 = confirm(
+    'This saves the top 3 questions per grade (and the final result, if one ran) to the archive, ' +
+    'then PERMANENTLY DELETES every question, vote, and round for all grades so the board is ready ' +
+    'for a new cycle.\n\nThis cannot be undone. Continue?'
+  );
+  if (!step1) return;
+
+  const step2 = confirm('Are you absolutely sure? All current questions and votes will be gone for good.');
+  if (!step2) return;
+
+  const msgEl = document.getElementById('archiveResetMsg');
+  msgEl.className = 'msg';
+
+  const { error } = await dbClient.rpc('fn_archive_and_reset', { p_passphrase: passphrase });
+  if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
+
+  msgEl.className = 'msg ok';
+  msgEl.textContent = 'Archived! The board has been reset — view saved results on the archive page.';
+
+  // Everything currently on screen needs to reflect the wipe.
+  await loadGrade(currentGrade);
+  await refreshFinalVote();
+  await refreshArchiveReset();
 }
 
 /* --------------------------------- utils --------------------------------- */
