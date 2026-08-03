@@ -6,23 +6,54 @@
 <title>Vote on Questions</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&family=EB+Garamond:ital,wght@1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
+  /* ===========================================================================
+     THEME — "Curious Minds" notebook (see submission.html for the full
+     rationale comment). These custom properties must stay in sync with the
+     same block on the other three pages so the whole site reads as one
+     product; if you retheme, edit the values here AND there (or better,
+     move this block into one shared stylesheet). --line is new here (the
+     original voting.html used a couple of hard-coded hex borders instead —
+     they've been switched over to var(--line) below for consistency).
+  =========================================================================== */
   :root{
-    --board:      #1F3A2E;
-    --board-line: #2C4C3B;
-    --card:       #FBF3E3;
-    --ink:        #2B2B2B;
-    --accent:     #E8604C;
-    --accent-dark:#C94A38;
-    --gold:       #F2C14E;
-    --muted:      #8A9A90;
-    --error:      #C94A38;
-    --ok:         #4C8B5C;
+    --board:      #212B42;   /* deep indigo "ink & night sky" backdrop      */
+    --board-line: #303F60;   /* soft glow worked into that backdrop         */
+    --card:       #FBF3E0;   /* aged parchment page                         */
+    --ink:        #2B241C;   /* warm sepia ink for body text                */
+    --accent:     #C1502E;   /* terracotta ink-wash — primary actions       */
+    --accent-dark:#9C3D22;
+    --gold:       #D4AF37;   /* gold leaf — highlights, badges, icons       */
+    --muted:      #8B7F68;   /* warm taupe for secondary text               */
+    --error:      #B23A2E;
+    --ok:         #4B7A52;   /* verdigris — aged bronze-green for success   */
+    --line:       #E4D6AE;   /* hairline rule/border on parchment           */
   }
   *{ box-sizing:border-box; }
+
+  /* Fixed golden-spiral watermark behind everything on the page — the
+     golden-ratio spiral from da Vinci's proportion studies, echoing the
+     "great questions" theme. Centered on the viewport (rather than tucked
+     in a corner) with a thicker stroke (18 units on a ~2738-unit-wide
+     viewBox) so it reads clearly as part of the page's background. Still
+     sits behind content (z-index:0) and never intercepts clicks
+     (pointer-events:none). */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:.15;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%202738.3%202301.8%27%3E%3Cpath%20d%3D%27M1710.8%2C645.2%20L1710.9%2C645.5%20L1710.9%2C646.0%20L1710.9%2C646.4%20L1710.8%2C646.8%20L1710.7%2C647.3%20L1710.5%2C647.7%20L1710.3%2C648.2%20L1709.9%2C648.6%20L1709.6%2C649.0%20L1709.1%2C649.4%20L1708.6%2C649.7%20L1708.1%2C649.9%20L1707.4%2C650.1%20L1706.8%2C650.2%20L1706.1%2C650.2%20L1705.4%2C650.2%20L1704.7%2C650.0%20L1703.9%2C649.8%20L1703.2%2C649.4%20L1702.5%2C649.0%20L1701.9%2C648.4%20L1701.3%2C647.7%20L1700.7%2C647.0%20L1700.3%2C646.1%20L1699.9%2C645.2%20L1699.7%2C644.1%20L1699.5%2C643.0%20L1699.6%2C641.9%20L1699.7%2C640.7%20L1700.1%2C639.6%20L1700.5%2C638.4%20L1701.2%2C637.2%20L1702.0%2C636.1%20L1703.0%2C635.1%20L1704.2%2C634.2%20L1705.5%2C633.4%20L1707.0%2C632.7%20L1708.6%2C632.2%20L1710.3%2C631.9%20L1712.1%2C631.8%20L1714.0%2C632.0%20L1715.9%2C632.4%20L1717.8%2C633.1%20L1719.7%2C634.0%20L1721.5%2C635.2%20L1723.2%2C636.7%20L1724.8%2C638.4%20L1726.2%2C640.4%20L1727.4%2C642.7%20L1728.3%2C645.2%20L1729.0%2C647.8%20L1729.3%2C650.7%20L1729.2%2C653.7%20L1728.8%2C656.7%20L1727.9%2C659.8%20L1726.6%2C662.9%20L1724.9%2C665.9%20L1722.8%2C668.8%20L1720.1%2C671.5%20L1717.1%2C673.9%20L1713.6%2C676.0%20L1709.8%2C677.7%20L1705.6%2C679.0%20L1701.2%2C679.8%20L1696.4%2C680.0%20L1691.6%2C679.6%20L1686.6%2C678.6%20L1681.6%2C676.8%20L1676.6%2C674.4%20L1671.8%2C671.3%20L1667.3%2C667.4%20L1663.2%2C662.8%20L1659.5%2C657.6%20L1656.4%2C651.6%20L1653.9%2C645.2%20L1652.3%2C638.1%20L1651.4%2C630.7%20L1651.6%2C622.9%20L1652.7%2C614.9%20L1655.0%2C606.8%20L1658.3%2C598.7%20L1662.8%2C590.8%20L1668.5%2C583.3%20L1675.3%2C576.3%20L1683.3%2C569.9%20L1692.4%2C564.4%20L1702.4%2C559.9%20L1713.3%2C556.5%20L1725.1%2C554.5%20L1737.4%2C553.9%20L1750.2%2C555.0%20L1763.3%2C557.7%20L1776.4%2C562.2%20L1789.3%2C568.6%20L1801.8%2C576.8%20L1813.6%2C587.0%20L1824.5%2C598.9%20L1834.2%2C612.7%20L1842.3%2C628.2%20L1848.7%2C645.2%20L1853.1%2C663.5%20L1855.2%2C683.0%20L1854.8%2C703.4%20L1851.8%2C724.4%20L1846.0%2C745.6%20L1837.2%2C766.7%20L1825.4%2C787.3%20L1810.5%2C807.1%20L1792.6%2C825.5%20L1771.8%2C842.1%20L1748.1%2C856.6%20L1721.8%2C868.4%20L1693.2%2C877.2%20L1662.5%2C882.5%20L1630.2%2C883.9%20L1596.7%2C881.3%20L1562.5%2C874.1%20L1528.1%2C862.3%20L1494.3%2C845.6%20L1461.5%2C824.1%20L1430.6%2C797.5%20L1402.1%2C766.2%20L1376.9%2C730.1%20L1355.5%2C689.7%20L1338.8%2C645.2%20L1327.3%2C597.1%20L1321.8%2C546.1%20L1322.7%2C492.7%20L1330.6%2C437.8%20L1345.9%2C382.2%20L1368.9%2C326.9%20L1399.8%2C272.9%20L1438.7%2C221.3%20L1485.6%2C173.1%20L1540.2%2C129.5%20L1602.2%2C91.6%20L1671.0%2C60.7%20L1746.0%2C37.7%20L1826.3%2C23.9%20L1910.9%2C20.0%20L1998.6%2C27.0%20L2088.2%2C45.7%20L2178.1%2C76.7%20L2266.7%2C120.3%20L2352.4%2C176.8%20L2433.5%2C246.2%20L2508.0%2C328.3%20L2574.1%2C422.7%20L2629.9%2C528.7%20L2673.8%2C645.2%20L2703.7%2C771.0%20L2718.3%2C904.6%20L2715.9%2C1044.3%20L2695.2%2C1188.0%20L2655.1%2C1333.5%20L2594.9%2C1478.2%20L2513.9%2C1619.7%20L2412.0%2C1754.9%20L2289.4%2C1881.1%20L2146.4%2C1995.3%20L1984.2%2C2094.3%20L1804.0%2C2175.3%20L1607.7%2C2235.4%20L1397.5%2C2271.7%20L1176.0%2C2281.8%20L946.3%2C2263.4%20L711.8%2C2214.5%20L476.5%2C2133.5%20L244.4%2C2019.3%20L20.0%2C1871.4%27%20fill%3D%27none%27%20stroke%3D%27%23D4AF37%27%20stroke-width%3D%2718%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position: center;
+    background-size: 640px 538px;
+  }
+
   body{
     margin:0;
     min-height:100vh;
@@ -34,15 +65,32 @@
     color: var(--ink);
     padding: 32px 16px 60px;
   }
-  .wrap{ width:100%; max-width: 560px; margin: 0 auto; }
+  /* position:relative + z-index:1 lifts the actual content above the fixed
+     body::before spiral watermark (which sits at z-index:0). */
+  .wrap{ width:100%; max-width: 560px; margin: 0 auto; position:relative; z-index:1; }
+  .eyebrow-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 4px; }
+  .spiral-icon{ width:26px; height:26px; flex-shrink:0; opacity:.9; }
   h1.eyebrow{
     font-family:'Patrick Hand', cursive;
     color: var(--gold);
     text-align:center;
     font-size: 2rem;
-    margin: 0 0 4px;
+    margin: 0;
   }
-  .sub{ text-align:center; color:#DCE6DF; font-weight:700; margin:0 0 24px; }
+  /* NOTE: .sub's text content is set dynamically by JS (id="subline") to
+     reflect live voting status, so only its styling changes here — the
+     italic serif tagline below it is a separate, static element. */
+  .sub{ text-align:center; color:#E7DFC7; font-weight:700; margin:0 0 6px; }
+  .tagline{
+    font-family:'EB Garamond', serif;
+    font-style: italic;
+    text-align:center;
+    color:#E7DFC7;
+    font-weight:600;
+    font-size: 1.05rem;
+    margin:0 0 18px;
+    opacity:.9;
+  }
   .badgebar{ display:flex; justify-content:center; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
   .badge{
     background: var(--gold); color:#4A3200; font-weight:800; font-size:.82rem;
@@ -55,10 +103,12 @@
     box-shadow: 0 18px 40px rgba(0,0,0,.35);
     position:relative;
   }
+  /* Gold-leaf "wax seal" dot pinning the note card in place — matches the
+     recolored .pin on the other three pages. */
   .pin{
     position:absolute; top:-10px; left:50%; transform: translateX(-50%);
     width:18px; height:18px; border-radius:50%;
-    background: radial-gradient(circle at 35% 30%, #ff8a75, var(--accent-dark));
+    background: radial-gradient(circle at 35% 30%, #f0d67a, var(--gold));
     box-shadow: 0 3px 6px rgba(0,0,0,.4);
   }
   label{
@@ -67,7 +117,7 @@
   }
   input[type=text]{
     width:100%; font-family:'Nunito',sans-serif; font-size:1rem;
-    padding:12px 14px; border:2px solid #E3D9C2; border-radius:8px; background:#fff;
+    padding:12px 14px; border:2px solid var(--line); border-radius:8px; background:#fff;
   }
   input[type=text]:focus{ outline:none; border-color: var(--accent); }
   button{
@@ -84,7 +134,7 @@
   .qlist{ list-style:none; margin: 18px 0 0; padding:0; }
   .qitem{
     display:flex; align-items:flex-start; gap:12px;
-    background:#fff; border:2px solid #E3D9C2; border-radius:10px;
+    background:#fff; border:2px solid var(--line); border-radius:10px;
     padding: 14px 16px; margin-bottom:10px; cursor:pointer;
     transition: border-color .12s, background .12s;
   }
@@ -123,7 +173,18 @@
 <body>
 
 <div class="wrap">
-  <h1 class="eyebrow">Vote for Questions</h1>
+  <div class="eyebrow-row">
+    <svg class="spiral-icon" viewBox="0 0 44 44" aria-hidden="true">
+      <path d="M22.7,23.4 L22.8,23.5 L23.0,23.7 L23.1,23.9 L23.2,24.2 L23.2,24.4 L23.1,24.7 L23.0,25.0 L22.8,25.2 L22.6,25.5 L22.3,25.7 L21.9,25.8 L21.5,25.9 L21.1,25.9 L20.6,25.7 L20.2,25.5 L19.8,25.2 L19.4,24.7 L19.2,24.2 L19.0,23.6 L18.9,22.9 L19.1,22.2 L19.3,21.4 L19.8,20.7 L20.4,20.1 L21.2,19.6 L22.2,19.2 L23.2,19.1 L24.4,19.1 L25.6,19.4 L26.7,20.0 L27.8,20.9 L28.7,22.1 L29.5,23.5 L29.9,25.1 L30.0,26.9 L29.7,28.8 L29.0,30.7 L27.8,32.5 L26.1,34.2 L24.0,35.5 L21.6,36.5 L18.8,36.9 L15.8,36.8"
+            fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <h1 class="eyebrow">Vote for Questions</h1>
+  </div>
+  <!-- Static tagline (unlike #subline below, its text never changes at
+       runtime, so it's safe to hard-code here). -->
+  <p class="tagline">Which question deserves an answer most?</p>
+  <!-- id="subline": its TEXT is overwritten by JS depending on live voting
+       status (see the script below) — only its CSS styling changed above. -->
   <p class="sub" id="subline">Loading…</p>
   <div class="badgebar" id="badgebar"></div>
 
