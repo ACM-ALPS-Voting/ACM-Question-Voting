@@ -47,6 +47,11 @@
   .sidebar{
     flex: 0 0 200px;               /* fixed width, doesn't grow/shrink */
     position: sticky; top: 24px;    /* stays in view while the page scrolls */
+    /* Nudges the sidebar down so its top lines up with the Grade card
+       rather than the page title — approximate (tuned by eye against the
+       title + Lock button above it), so nudge this value a few px if it's
+       slightly off once your fonts are loaded. */
+    margin-top: 90px;
   }
   .sidebar h2{ font-family:'Patrick Hand', cursive; font-size:1.3rem; margin:0 0 14px; color:#3d4f43; text-align:center; }
   .wrap{ flex:1 1 auto; min-width:0; max-width: 860px; margin:0; }
@@ -56,7 +61,7 @@
        sidebar drops above the main content and its links lay out in a
        wrapping row instead of a stacked list. */
     .page{ flex-direction:column; }
-    .sidebar{ position:static; width:100%; }
+    .sidebar{ position:static; width:100%; margin-top:0; }
     .sidebar .linkbar{ flex-direction:row; }
     .sidebar .linkbar a{ flex:1 1 auto; }
   }
@@ -115,7 +120,11 @@
   .top5 li{ margin-bottom:8px; font-weight:600; }
   .top5 .who{ color:#5c6b60; font-weight:800; font-size:.82rem; display:block; }
 
-  .hidden{ display:none; }
+  .hidden{ display:none !important; } /* utility class — always wins, regardless
+    of what other classes (like .msg.error) are also on the element. Without
+    !important here, an element with both "error" and "hidden" classes could
+    render visible-but-empty, since .msg.error is more specific than .hidden
+    alone. */
 
   /* --------------------------- quick links bar --------------------------- */
   /* Stacked vertically by default now that this lives in the sidebar; the
