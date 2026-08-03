@@ -101,6 +101,23 @@
   .msg.info{ display:block; background:#EFEAD9; color:#5c6b60; }
 
   .empty{ text-align:center; color:#5c6b60; font-weight:700; padding: 12px 0; }
+
+  /* ---------------------------- confirm modal ---------------------------- */
+  /* A small custom dialog, used instead of the browser's built-in confirm()
+     so the two buttons can say something more useful than "OK"/"Cancel". */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.5);
+    display:flex; align-items:center; justify-content:center;
+    padding:16px; z-index:1000;
+  }
+  .modal-box{
+    background: var(--card); border-radius:10px; padding:24px;
+    max-width:360px; width:100%; box-shadow:0 18px 40px rgba(0,0,0,.4);
+    text-align:center;
+  }
+  .modal-box p{ font-weight:700; color: var(--ink); margin:0 0 20px; line-height:1.4; }
+  .modal-box .modal-buttons{ display:flex; flex-direction:column; gap:10px; }
+  .modal-box button{ margin-top:0; } /* override the global button's margin-top:20px */
 </style>
 </head>
 <body>
@@ -347,10 +364,12 @@ async function castVotes(studentId) {
   // before it's locked in — so confirm rather than submitting silently.
   if (selectedIds.length < votesAllowed) {
     const remaining = votesAllowed - selectedIds.length;
-    const proceed = confirm(
+    const proceed = await showConfirmModal(
       `You have ${remaining} vote${remaining === 1 ? '' : 's'} left unused ` +
       `(you picked ${selectedIds.length} of ${votesAllowed}). ` +
-      `Submit anyway?`
+      `Submit anyway, or go back and pick more?`,
+      'Submit Anyway',
+      'Return to Voting'
     );
     if (!proceed) return;
   }
@@ -375,6 +394,39 @@ async function castVotes(studentId) {
   contentEl.innerHTML = isFinal
     ? '<p class="empty">Thanks! Your final vote has been recorded.</p>'
     : '<p class="empty">Thanks! Your votes have been recorded for this round.</p>';
+}
+
+// Shows a custom confirm dialog with caller-chosen button labels (the
+// native confirm() always says "OK"/"Cancel", which isn't clear enough
+// here). Resolves true if the confirm button was clicked, false for the
+// cancel button.
+function showConfirmModal(message, confirmLabel, cancelLabel) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <p>${escapeHtml(message)}</p>
+        <div class="modal-buttons">
+          <button id="modalConfirmBtn">${escapeHtml(confirmLabel)}</button>
+          <button class="secondary" id="modalCancelBtn" type="button">${escapeHtml(cancelLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    function close(result) {
+      overlay.remove();
+      resolve(result);
+    }
+    document.getElementById('modalConfirmBtn').addEventListener('click', () => close(true));
+    document.getElementById('modalCancelBtn').addEventListener('click', () => close(false));
+    // Clicking the dimmed backdrop acts the same as the cancel button —
+    // the safer of the two outcomes since nothing gets submitted.
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(false);
+    });
+  });
 }
 
 function escapeHtml(str) {
