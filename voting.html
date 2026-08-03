@@ -290,7 +290,10 @@ async function loadQuestions() {
     : await dbClient.rpc('fn_list_open_questions', { p_grade: grade });
   if (error) {
     msgEl.className = 'msg error';
-    msgEl.textContent = 'Could not load questions. Please try again.';
+    // Showing the real message (rather than a generic one) so a
+    // permissions/schema issue is diagnosable instead of a dead end.
+    msgEl.textContent = error.message || 'Could not load questions. Please try again.';
+    console.error('fn_list_final_candidates / fn_list_open_questions error:', error);
     return;
   }
   if (!questions || questions.length === 0) {
