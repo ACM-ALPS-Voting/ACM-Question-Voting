@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Question Board — Teacher Admin</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&family=EB+Garamond:ital,wght@1,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+  /* ===========================================================================
+     THEME — "Curious Minds" notebook (see submission.html for the full
+     rationale comment). These custom properties must stay in sync with the
+     same block on the other three pages so the whole site reads as one
+     product; if you retheme, edit the values here AND there (or better,
+     move this block into one shared stylesheet).
+  =========================================================================== */
+  :root{
+    --board:      #212B42;   /* deep indigo "ink & night sky" backdrop      */
+    --board-line: #303F60;   /* soft glow worked into that backdrop         */
+    --card:       #FBF3E0;   /* aged parchment page                         */
+    --ink:        #2B241C;   /* warm sepia ink for body text                */
+    --accent:     #C1502E;   /* terracotta ink-wash — primary actions       */
+    --accent-dark:#9C3D22;
+    --gold:       #D4AF37;   /* gold leaf — highlights, badges, icons       */
+    --muted:      #8B7F68;   /* warm taupe for secondary text               */
+    --error:      #B23A2E;
+    --ok:         #4B7A52;   /* verdigris — aged bronze-green for success   */
+    --line:       #E4D6AE;   /* hairline rule/border on parchment           */
+  }
+  *{ box-sizing:border-box; }
+
+  /* Fixed golden-spiral watermark behind everything on the page — the
+     golden-ratio spiral from da Vinci's proportion studies, echoing the
+     "great questions" theme. Centered on the viewport (rather than tucked
+     in a corner) with a thicker stroke (18 units on a ~2738-unit-wide
+     viewBox) so it reads clearly as part of the page's background. Still
+     sits behind content (z-index:0) and never intercepts clicks
+     (pointer-events:none). */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:.15;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%202738.3%202301.8%27%3E%3Cpath%20d%3D%27M1710.8%2C645.2%20L1710.9%2C645.5%20L1710.9%2C646.0%20L1710.9%2C646.4%20L1710.8%2C646.8%20L1710.7%2C647.3%20L1710.5%2C647.7%20L1710.3%2C648.2%20L1709.9%2C648.6%20L1709.6%2C649.0%20L1709.1%2C649.4%20L1708.6%2C649.7%20L1708.1%2C649.9%20L1707.4%2C650.1%20L1706.8%2C650.2%20L1706.1%2C650.2%20L1705.4%2C650.2%20L1704.7%2C650.0%20L1703.9%2C649.8%20L1703.2%2C649.4%20L1702.5%2C649.0%20L1701.9%2C648.4%20L1701.3%2C647.7%20L1700.7%2C647.0%20L1700.3%2C646.1%20L1699.9%2C645.2%20L1699.7%2C644.1%20L1699.5%2C643.0%20L1699.6%2C641.9%20L1699.7%2C640.7%20L1700.1%2C639.6%20L1700.5%2C638.4%20L1701.2%2C637.2%20L1702.0%2C636.1%20L1703.0%2C635.1%20L1704.2%2C634.2%20L1705.5%2C633.4%20L1707.0%2C632.7%20L1708.6%2C632.2%20L1710.3%2C631.9%20L1712.1%2C631.8%20L1714.0%2C632.0%20L1715.9%2C632.4%20L1717.8%2C633.1%20L1719.7%2C634.0%20L1721.5%2C635.2%20L1723.2%2C636.7%20L1724.8%2C638.4%20L1726.2%2C640.4%20L1727.4%2C642.7%20L1728.3%2C645.2%20L1729.0%2C647.8%20L1729.3%2C650.7%20L1729.2%2C653.7%20L1728.8%2C656.7%20L1727.9%2C659.8%20L1726.6%2C662.9%20L1724.9%2C665.9%20L1722.8%2C668.8%20L1720.1%2C671.5%20L1717.1%2C673.9%20L1713.6%2C676.0%20L1709.8%2C677.7%20L1705.6%2C679.0%20L1701.2%2C679.8%20L1696.4%2C680.0%20L1691.6%2C679.6%20L1686.6%2C678.6%20L1681.6%2C676.8%20L1676.6%2C674.4%20L1671.8%2C671.3%20L1667.3%2C667.4%20L1663.2%2C662.8%20L1659.5%2C657.6%20L1656.4%2C651.6%20L1653.9%2C645.2%20L1652.3%2C638.1%20L1651.4%2C630.7%20L1651.6%2C622.9%20L1652.7%2C614.9%20L1655.0%2C606.8%20L1658.3%2C598.7%20L1662.8%2C590.8%20L1668.5%2C583.3%20L1675.3%2C576.3%20L1683.3%2C569.9%20L1692.4%2C564.4%20L1702.4%2C559.9%20L1713.3%2C556.5%20L1725.1%2C554.5%20L1737.4%2C553.9%20L1750.2%2C555.0%20L1763.3%2C557.7%20L1776.4%2C562.2%20L1789.3%2C568.6%20L1801.8%2C576.8%20L1813.6%2C587.0%20L1824.5%2C598.9%20L1834.2%2C612.7%20L1842.3%2C628.2%20L1848.7%2C645.2%20L1853.1%2C663.5%20L1855.2%2C683.0%20L1854.8%2C703.4%20L1851.8%2C724.4%20L1846.0%2C745.6%20L1837.2%2C766.7%20L1825.4%2C787.3%20L1810.5%2C807.1%20L1792.6%2C825.5%20L1771.8%2C842.1%20L1748.1%2C856.6%20L1721.8%2C868.4%20L1693.2%2C877.2%20L1662.5%2C882.5%20L1630.2%2C883.9%20L1596.7%2C881.3%20L1562.5%2C874.1%20L1528.1%2C862.3%20L1494.3%2C845.6%20L1461.5%2C824.1%20L1430.6%2C797.5%20L1402.1%2C766.2%20L1376.9%2C730.1%20L1355.5%2C689.7%20L1338.8%2C645.2%20L1327.3%2C597.1%20L1321.8%2C546.1%20L1322.7%2C492.7%20L1330.6%2C437.8%20L1345.9%2C382.2%20L1368.9%2C326.9%20L1399.8%2C272.9%20L1438.7%2C221.3%20L1485.6%2C173.1%20L1540.2%2C129.5%20L1602.2%2C91.6%20L1671.0%2C60.7%20L1746.0%2C37.7%20L1826.3%2C23.9%20L1910.9%2C20.0%20L1998.6%2C27.0%20L2088.2%2C45.7%20L2178.1%2C76.7%20L2266.7%2C120.3%20L2352.4%2C176.8%20L2433.5%2C246.2%20L2508.0%2C328.3%20L2574.1%2C422.7%20L2629.9%2C528.7%20L2673.8%2C645.2%20L2703.7%2C771.0%20L2718.3%2C904.6%20L2715.9%2C1044.3%20L2695.2%2C1188.0%20L2655.1%2C1333.5%20L2594.9%2C1478.2%20L2513.9%2C1619.7%20L2412.0%2C1754.9%20L2289.4%2C1881.1%20L2146.4%2C1995.3%20L1984.2%2C2094.3%20L1804.0%2C2175.3%20L1607.7%2C2235.4%20L1397.5%2C2271.7%20L1176.0%2C2281.8%20L946.3%2C2263.4%20L711.8%2C2214.5%20L476.5%2C2133.5%20L244.4%2C2019.3%20L20.0%2C1871.4%27%20fill%3D%27none%27%20stroke%3D%27%23D4AF37%27%20stroke-width%3D%2718%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position: center;
+    background-size: 640px 538px;
+  }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, var(--board-line) 0, transparent 45%),
+      radial-gradient(circle at 85% 70%, var(--board-line) 0, transparent 40%),
+      var(--board);
+    font-family:'Nunito', sans-serif;
+    color: var(--ink);
+    padding: 32px 16px 80px;
+  }
+  /* ------------------------- overall page layout ------------------------- */
+  /* .page is the two-column shell: a left sidebar (quick links) plus the
+     main content column (.wrap, unchanged from before). On narrow screens
+     the media query below stacks the sidebar on top instead of beside. */
+  /* position:relative + z-index:1 lifts the actual content above the fixed
+     body::before spiral watermark (which sits at z-index:0). */
+  .page{
+    width:100%; max-width: 1080px; margin:0 auto;
+    display:flex; align-items:flex-start; gap:24px;
+    position:relative; z-index:1;
+  }
+  .sidebar{
+    flex: 0 0 200px;               /* fixed width, doesn't grow/shrink */
+    position: sticky; top: 24px;    /* stays in view while the page scrolls */
+  }
+  /* Lock button lives at the bottom of the sidebar now (moved out of the
+     dashboard's top row) — full width so it lines up with the nav links
+     above it, with a bit of breathing room. Hidden by default; unlock()/
+     lock() toggle it alongside the dashboard itself (see the JS below). */
+  .sidebar button{ width:100%; margin-top:14px; }
+  .sidebar h2{ font-family:'Patrick Hand', cursive; font-size:1.3rem; margin:0 0 14px; color: var(--ink); text-align:center; }
+  .eyebrow-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 4px; }
+  .spiral-icon{ width:26px; height:26px; flex-shrink:0; opacity:.9; }
+  .tagline{
+    font-family:'EB Garamond', serif;
+    font-style: italic;
+    text-align:center;
+    color:#E7DFC7;
+    font-weight:600;
+    font-size: 1.05rem;
+    margin:0 0 24px;
+  }
+  .wrap{ flex:1 1 auto; min-width:0; max-width: 860px; margin:0; }
+
+  /* Full-width title block, sitting ABOVE the two-column .page layout
+     (rather than inside .wrap alongside it) — this is what actually fixes
+     the Pages/Grade alignment: because neither column carries the title's
+     height anymore, .sidebar's card and .wrap's first card both start
+     flush at the top of .page (which uses align-items:flex-start), so they
+     line up automatically instead of needing a hand-tuned margin-top. */
+  .page-header{
+    width:100%; max-width: 1080px; margin: 0 auto 28px;
+    position:relative; z-index:1;
+  }
+
+  @media (max-width: 760px){
+    /* Below tablet width there isn't room for a side column, so the
+       sidebar drops above the main content and its links lay out in a
+       wrapping row instead of a stacked list. */
+    .page{ flex-direction:column; }
+    .sidebar{ position:static; width:100%; }
+    .sidebar .linkbar{ flex-direction:row; }
+    .sidebar .linkbar a{ flex:1 1 auto; }
+  }
+  h1.eyebrow{
+    font-family:'Patrick Hand', cursive; color: var(--gold);
+    text-align:center; font-size: 2.1rem; margin: 0 0 24px;
+  }
+  .card{
+    background: var(--card); border-radius: 10px; padding: 26px 26px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.35); margin-bottom: 22px;
+  }
+  .card h2{ font-family:'Patrick Hand', cursive; font-size:1.5rem; margin:0 0 14px; color: var(--ink); }
+  label{
+    display:block; font-weight:800; font-size:.8rem; text-transform:uppercase;
+    letter-spacing:.06em; color:#5c6b60; margin: 0 0 6px;
+  }
+  input[type=text], input[type=password], input[type=number], select{
+    font-family:'Nunito',sans-serif; font-size:1rem; padding:10px 12px;
+    border:2px solid var(--line); border-radius:8px; background:#fff; color: var(--ink);
+  }
+  input:focus, select:focus{ outline:none; border-color: var(--accent); }
+  button{
+    font-family:'Nunito',sans-serif; font-weight:800; font-size:.95rem;
+    color:#fff; background: var(--accent); border:none; border-radius:8px;
+    padding: 10px 18px; cursor:pointer; transition: background .15s, transform .08s;
+  }
+  button:hover:not(:disabled){ background: var(--accent-dark); }
+  button:active:not(:disabled){ transform: scale(.97); }
+  button:disabled{ opacity:.5; cursor:not-allowed; }
+  button.ghost{ background:#5c6b60; }
+  button.ghost:hover{ background:#465049; }
+  button.danger{ background:#8f2f24; }
+  button.danger:hover{ background:#732418; }
+
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+  .roundline{
+    display:flex; align-items:center; justify-content:space-between;
+    gap: 12px; padding: 12px 14px; border:2px solid var(--line); border-radius:8px;
+    margin-bottom: 10px; background:#fff; flex-wrap:wrap;
+  }
+  .roundline .label{ font-family:'Patrick Hand', cursive; font-size:1.25rem; }
+  .roundline .stats{ font-weight:700; color:#5c6b60; font-size:.88rem; }
+
+  table{ width:100%; border-collapse: collapse; margin-top: 6px; }
+  th, td{ text-align:left; padding: 9px 8px; border-bottom: 1px solid var(--line); font-size:.92rem; }
+  th{ text-transform:uppercase; font-size:.72rem; letter-spacing:.05em; color:#5c6b60; }
+  tr.eliminated{ opacity:.45; }
+  .tag{ display:inline-block; font-size:.7rem; font-weight:800; padding:2px 8px; border-radius:999px; background:#EFEAD9; color:#5c6b60; }
+
+  .msg{ margin-top:14px; padding:10px 14px; border-radius:8px; font-weight:700; font-size:.9rem; display:none; }
+  .msg.ok{ display:block; background:#E4F0E6; color: var(--ok); }
+  .msg.error{ display:block; background:#FBE4E1; color: var(--error); }
+
+  .top5{ list-style: decimal; padding-left: 22px; }
+  .top5 li{ margin-bottom:8px; font-weight:600; }
+  .top5 .who{ color:#5c6b60; font-weight:800; font-size:.82rem; display:block; }
+
+  .hidden{ display:none !important; } /* utility class — always wins, regardless
+    of what other classes (like .msg.error) are also on the element. Without
+    !important here, an element with both "error" and "hidden" classes could
+    render visible-but-empty, since .msg.error is more specific than .hidden
+    alone. */
+
+  /* --------------------------- quick links bar --------------------------- */
+  /* Stacked vertically by default now that this lives in the sidebar; the
+     mobile media query above switches it back to a horizontal row. */
+  .linkbar{ display:flex; flex-direction:column; flex-wrap:wrap; gap:10px; }
+  .linkbar a{
+    display:inline-block; background:#fff; border:2px solid var(--line); border-radius:8px;
+    padding:9px 14px; font-weight:800; font-size:.88rem; color: var(--accent-dark);
+    text-decoration:none; text-align:center;
+  }
+  .linkbar a:hover{ border-color: var(--accent); }
+
+  /* ------------------------------- QR grid ------------------------------- */
+  .qrgrid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:18px; margin-top:16px; }
+  .qritem{ background:#fff; border:2px solid var(--line); border-radius:10px; padding:16px; text-align:center; }
+  .qritem .qrlabel{ font-family:'Patrick Hand', cursive; font-size:1.3rem; margin-bottom:8px; }
+  .qritem .qrcanvas{ display:flex; justify-content:center; }
+  .qritem .qrurl{ font-size:.68rem; color:#5c6b60; word-break:break-all; margin-top:8px; }
+
+  /* When printing, hide everything except the QR grid so the teacher gets a
+     clean printout with no login box, tables, or buttons on the page. */
+  @media print{
+    body *{ visibility:hidden; }
+    #qrPrintArea, #qrPrintArea *{ visibility:visible; }
+    #qrPrintArea{ position:absolute; left:0; top:0; width:100%; }
+    #qrPrintArea button{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="eyebrow-row">
+    <svg class="spiral-icon" viewBox="0 0 44 44" aria-hidden="true">
+      <path d="M22.7,23.4 L22.8,23.5 L23.0,23.7 L23.1,23.9 L23.2,24.2 L23.2,24.4 L23.1,24.7 L23.0,25.0 L22.8,25.2 L22.6,25.5 L22.3,25.7 L21.9,25.8 L21.5,25.9 L21.1,25.9 L20.6,25.7 L20.2,25.5 L19.8,25.2 L19.4,24.7 L19.2,24.2 L19.0,23.6 L18.9,22.9 L19.1,22.2 L19.3,21.4 L19.8,20.7 L20.4,20.1 L21.2,19.6 L22.2,19.2 L23.2,19.1 L24.4,19.1 L25.6,19.4 L26.7,20.0 L27.8,20.9 L28.7,22.1 L29.5,23.5 L29.9,25.1 L30.0,26.9 L29.7,28.8 L29.0,30.7 L27.8,32.5 L26.1,34.2 L24.0,35.5 L21.6,36.5 L18.8,36.9 L15.8,36.8"
+            fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <h1 class="eyebrow">Question Board — Teacher Admin</h1>
+  </div>
+  <p class="tagline">Where every great question begins.</p>
+
+  <!-- Shown only if a required script (Supabase, QR library) fails to load,
+       so a network/CDN problem is visible instead of the page just doing
+       nothing when buttons are clicked. -->
+  <div class="msg error hidden" id="scriptError"></div>
+</div>
+
+<div class="page">
+
+  <!-- ============================== SIDEBAR ============================== -->
+  <!-- Quick links, moved here from a card at the top of the page. Sits
+       outside the login gate on purpose (same as before the move) — these
+       are just navigation shortcuts, not admin-only actions, so they're
+       visible whether or not the teacher has unlocked the dashboard yet.
+       Assumes submission.html, voting.html, index.html, and this file
+       (admin.html) are hosted together in the same folder with these exact
+       filenames (as the README sets them up). If you renamed a file or
+       split them across folders, these links (and the QR codes below) will
+       need editing to match. -->
+  <aside class="sidebar card">
+    <h2>Pages</h2>
+    <nav class="linkbar" id="linkBar"></nav>
+    <!-- Moved down here from a row above the Grade card — same lock()
+         function as before (wired up further down in the script), just
+         relocated. Hidden until the teacher unlocks the dashboard, and
+         hidden again the moment they lock it (see unlock()/lock() below);
+         showing "Lock" while already logged out would be confusing, and
+         there's nothing for it to do in that state anyway. -->
+    <button class="ghost hidden" id="lockBtn" type="button">Lock</button>
+  </aside>
+
+<div class="wrap">
+
+  <!-- ============================== LOGIN GATE ============================== -->
+  <div class="card" id="loginCard">
+    <h2>Enter admin passphrase</h2>
+    <label for="passInput">Passphrase</label>
+    <input type="password" id="passInput" placeholder="Passphrase">
+    <div class="row" style="margin-top:14px;">
+      <button id="unlockBtn">Unlock</button>
+    </div>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <!-- ============================== DASHBOARD ============================== -->
+  <div id="dashboard" class="hidden">
+
+    <div class="card">
+      <h2>Grade</h2>
+      <select id="gradeSelect">
+        <option value="ALL" selected>Overall (all grades)</option>
+        <option value="3">Grade 3</option>
+        <option value="4">Grade 4</option>
+        <option value="5">Grade 5</option>
+        <option value="6">Grade 6</option>
+      </select>
+      <p style="font-size:.85rem; color:#5c6b60; font-weight:700; margin-top:10px;">
+        "Overall" applies Start Round / End Round / End Voting to every grade at once, overriding
+        whatever each grade was doing individually.
+      </p>
+    </div>
+
+    <!-- ============================== STUDENT LOOKUP ============================== -->
+    <!-- Lets the teacher pull up a single student's activity by ID: what
+         they submitted and how it did in voting, plus everything they
+         voted for, broken down by round. Independent of the grade dropdown
+         above — a student ID is looked up across all grades at once, since
+         the teacher may not remember (or the tool shouldn't require) which
+         grade a given student is in. -->
+    <div class="card">
+      <h2>Student lookup</h2>
+      <div class="row">
+        <div>
+          <label for="studentLookupInput">Student ID</label>
+          <input type="text" id="studentLookupInput" placeholder="e.g. 1042">
+        </div>
+        <button id="studentLookupBtn" style="margin-top:22px;">Look up student</button>
+      </div>
+      <div class="msg" id="studentLookupMsg"></div>
+
+      <div class="hidden" id="studentLookupResults" style="margin-top:20px;">
+        <h2 id="studentLookupHeading" style="margin-bottom:4px;"></h2>
+
+        <!-- Table 1: what this student submitted, and how the votes it
+             received break down round-by-round plus in total. -->
+        <h2 style="font-size:1.1rem;">Questions submitted &amp; votes received</h2>
+        <table>
+          <thead>
+            <tr><th>Grade</th><th>Question</th><th>Status</th><th>Votes by round</th><th>Total Votes</th></tr>
+          </thead>
+          <tbody id="studentQuestionsBody"></tbody>
+        </table>
+        <p id="studentQuestionsEmpty" class="hidden" style="color:#5c6b60; font-weight:700;">This student hasn't submitted a question.</p>
+
+        <!-- Table 2: everything this student voted for, one row per vote,
+             grouped/sorted by grade then round so history reads top to
+             bottom in chronological order. -->
+        <h2 style="font-size:1.1rem; margin-top:22px;">Votes cast, by round</h2>
+        <table>
+          <thead>
+            <tr><th>Grade</th><th>Round</th><th>Voted for</th><th>Submitted by</th></tr>
+          </thead>
+          <tbody id="studentVotesBody"></tbody>
+        </table>
+        <p id="studentVotesEmpty" class="hidden" style="color:#5c6b60; font-weight:700;">This student hasn't cast any votes.</p>
+      </div>
+    </div>
+
+    <div class="card" id="roundsCard">
+      <h2 id="roundsHeading">Rounds</h2>
+      <div id="roundsContent">Loading…</div>
+      <div class="msg" id="roundsMsg"></div>
+    </div>
+
+    <div class="card hidden" id="tableCard">
+      <h2 id="tableHeading">Questions</h2>
+      <table>
+        <thead>
+          <tr><th>Student ID</th><th>Question</th><th>Last Round Votes</th><th>Total Votes</th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <p id="tableEmpty" class="hidden" style="color:#5c6b60; font-weight:700;">No questions submitted for this grade yet.</p>
+    </div>
+
+    <div class="card hidden" id="endVotingCard">
+      <h2>End voting</h2>
+      <p style="font-size:.9rem; color:#5c6b60;">
+        Ends voting for this grade completely. No more rounds can be started afterward.
+      </p>
+      <button class="danger" id="endVotingBtn">End voting</button>
+      <div id="top5Wrap" class="hidden" style="margin-top:18px;">
+        <h2>Top 5 questions</h2>
+        <ol class="top5" id="top5List"></ol>
+      </div>
+    </div>
+
+    <!-- Final Vote is independent of the grade dropdown above — it pits the
+         single winning question from each grade against the others. It only
+         unlocks once every grade has had its own voting ended. -->
+    <div class="card">
+      <h2>Final vote</h2>
+      <p style="font-size:.9rem; color:#5c6b60;">
+        Once every grade's voting has ended, this puts each grade's top question
+        head-to-head. Share a link/QR code with <code>?grade=FINAL</code> for students to vote.
+      </p>
+      <div id="finalVoteContent">Loading…</div>
+      <div class="msg" id="finalVoteMsg"></div>
+    </div>
+
+    <!-- Archive & Reset: saves the top 3 per grade (+ FINAL, if it ran) as a
+         permanent snapshot, then wipes every submission/vote so the board is
+         ready for a brand new cycle. Only enabled once all four grades have
+         ended their voting, same unlock condition as Final Vote above. -->
+    <div class="card">
+      <h2>Archive &amp; reset</h2>
+      <p style="font-size:.9rem; color:#5c6b60;">
+        Saves the top 3 questions per grade (and the final vote result, if one ran) to a
+        permanent archive, then <strong>permanently deletes</strong> every question, vote, and
+        round so the board is ready to start over. View saved archives on the
+        <a href="archive.html" target="_blank">archive page</a>.
+      </p>
+      <div id="archiveResetContent">Loading…</div>
+      <div class="msg" id="archiveResetMsg"></div>
+    </div>
+
+    <!-- QR codes for each grade's voting link, plus one for the final vote.
+         Generated on demand (rather than on page load) since the QR library
+         doesn't need to run until the teacher actually wants to print them. -->
+    <div class="card">
+      <h2>QR codes</h2>
+      <p style="font-size:.9rem; color:#5c6b60;">
+        Generates one scannable code per grade linking straight to that grade's voting page,
+        plus one for the final vote. Print these to hand out or post in the classroom.
+      </p>
+      <div class="row">
+        <button id="generateQrBtn">Generate QR codes</button>
+        <button class="ghost hidden" id="printQrBtn">Print QR codes</button>
+      </div>
+      <div id="qrPrintArea">
+        <div class="qrgrid" id="qrGrid"></div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /.wrap -->
+</div><!-- /.page -->
+
+<script>
+/* ============================================================================
+ * CONFIG — EDIT THESE TWO LINES ONLY (same values as the other two pages)
+ * ==========================================================================*/
+const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
+/* ==========================================================================*/
+
+function showLoadError(message) {
+  const el = document.getElementById('scriptError');
+  el.textContent = message;
+  el.classList.remove('hidden');
+  console.error(message);
+}
+
+// Dynamically loads a <script> tag and resolves once it's actually loaded
+// (or rejects if it fails), so we can wait for it before doing anything
+// that depends on it.
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+// The <script> tag in <head> already tried loading the Supabase library
+// from jsdelivr. If that succeeded, window.supabase is already set and we
+// don't wait on anything further. If a network blocks that specific CDN
+// (common on school filters), this tries unpkg as a second attempt before
+// giving up — different CDNs are sometimes blocked independently of each
+// other, so trying a second one meaningfully improves the odds of working
+// on a locked-down network.
+async function ensureSupabaseLibrary() {
+  if (window.supabase) return true;
+  try {
+    await loadScript('https://unpkg.com/@supabase/supabase-js@2');
+  } catch (err) {
+    console.error(err);
+  }
+  return !!window.supabase;
+}
+
+// Everything else on this page waits for the library to be confirmed
+// available (or confirmed unavailable) before running, so buttons don't
+// get wired up against a client that was never created.
+(async function main() {
+  const loaded = await ensureSupabaseLibrary();
+
+  let dbClient = null;
+  if (loaded) {
+    dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else {
+    showLoadError('Could not load the Supabase library from either CDN it tried (jsdelivr and unpkg). Check your internet connection, or whether your network blocks these domains — nothing on this page will work until one of them loads.');
+    return; // no point wiring up buttons that all depend on dbClient
+  }
+
+const ALL_GRADES = ['3', '4', '5', '6'];
+
+let passphrase = null;          // held in memory only for this browser tab
+let currentGrade = 'ALL';
+
+/* --------------------------------------------------------------------
+ * QUICK LINKS + QR CODES
+ * These both assume submission.html, voting.html, and index.html sit right
+ * next to this file (admin.html), which is how the README sets up hosting.
+ * If you moved the files, edit BASE_URL below instead of relying on
+ * auto-detection.
+ * ------------------------------------------------------------------*/
+function getBaseUrl() {
+  // Resolves to the folder containing whatever file is currently loaded —
+  // works no matter what this file is named or how it's reached, so
+  // renaming it again later won't break these links. (This file is no
+  // longer the site's index/home page — that's index.html now, a public
+  // grade-picker page; this admin.html is reached directly by its own URL.)
+  return new URL('.', window.location.href).href;
+}
+
+function populateLinkBar() {
+  const base = getBaseUrl();
+  const linkBar = document.getElementById('linkBar');
+  linkBar.innerHTML = `
+    <a href="${base}index.html" target="_blank">Home (grade picker) ↗</a>
+    <a href="${base}submission.html" target="_blank">Submission page ↗</a>
+    <a href="${base}voting.html?grade=3" target="_blank">Voting — Grade 3 ↗</a>
+    <a href="${base}voting.html?grade=4" target="_blank">Voting — Grade 4 ↗</a>
+    <a href="${base}voting.html?grade=5" target="_blank">Voting — Grade 5 ↗</a>
+    <a href="${base}voting.html?grade=6" target="_blank">Voting — Grade 6 ↗</a>
+    <a href="${base}voting.html?grade=FINAL" target="_blank">Voting — Final ↗</a>
+    <a href="${base}archive.html" target="_blank">Archive ↗</a>
+  `;
+}
+populateLinkBar();
+
+const generateQrBtnEl = document.getElementById('generateQrBtn');
+const printQrBtnEl = document.getElementById('printQrBtn');
+if (generateQrBtnEl) generateQrBtnEl.addEventListener('click', generateQrCodes);
+if (printQrBtnEl) printQrBtnEl.addEventListener('click', () => window.print());
+
+function generateQrCodes() {
+  const base = getBaseUrl();
+  const grid = document.getElementById('qrGrid');
+  grid.innerHTML = '';
+
+  // Grade codes plus a fifth for the final vote — handing this one out
+  // early is harmless, it just shows "hasn't started yet" until you do.
+  const items = [
+    { label: 'Grade 3', url: `${base}voting.html?grade=3` },
+    { label: 'Grade 4', url: `${base}voting.html?grade=4` },
+    { label: 'Grade 5', url: `${base}voting.html?grade=5` },
+    { label: 'Grade 6', url: `${base}voting.html?grade=6` },
+    { label: 'Final Vote', url: `${base}voting.html?grade=FINAL` },
+  ];
+
+  items.forEach(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'qritem';
+
+    const label = document.createElement('div');
+    label.className = 'qrlabel';
+    label.textContent = item.label;
+
+    const canvasWrap = document.createElement('div');
+    canvasWrap.className = 'qrcanvas';
+
+    const urlText = document.createElement('div');
+    urlText.className = 'qrurl';
+    urlText.textContent = item.url;
+
+    wrap.appendChild(label);
+    wrap.appendChild(canvasWrap);
+    wrap.appendChild(urlText);
+    grid.appendChild(wrap);
+
+    // qrcodejs renders directly into the given element (as a canvas or img).
+    new QRCode(canvasWrap, { text: item.url, width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
+  });
+
+  document.getElementById('printQrBtn').classList.remove('hidden');
+}
+
+const loginCard   = document.getElementById('loginCard');
+const dashboard   = document.getElementById('dashboard');
+const loginMsg    = document.getElementById('loginMsg');
+const gradeSelect = document.getElementById('gradeSelect');
+
+/* ----------------------------------------------------------------------
+ * SESSION PERSISTENCE
+ * Remembers the passphrase in this browser tab so refreshing the page
+ * doesn't ask for it again. Uses sessionStorage rather than localStorage,
+ * which means it's automatically cleared the moment the tab or browser is
+ * closed — on top of that, it also expires on its own after ADMIN_SESSION_HOURS
+ * even if the tab is left open, and there's a manual "Lock" button below for
+ * ending it early before walking away from the computer.
+ * --------------------------------------------------------------------*/
+const ADMIN_SESSION_HOURS = 8; // change this if you want a shorter/longer window
+const SESSION_KEY = 'qb_admin_session';
+
+function saveSession(value) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+    passphrase: value,
+    expiresAt: Date.now() + ADMIN_SESSION_HOURS * 60 * 60 * 1000
+  }));
+}
+
+function loadSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed.expiresAt || Date.now() > parsed.expiresAt) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed.passphrase;
+  } catch (err) {
+    return null;
+  }
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
+/* ----------------------------- LOGIN ----------------------------- */
+document.getElementById('unlockBtn').addEventListener('click', () => unlock());
+document.getElementById('passInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') unlock();
+});
+
+// silent=true is used for the automatic on-load attempt with a remembered
+// passphrase: on failure it just clears the stale session and quietly shows
+// the login screen, rather than flashing an error the teacher never typed
+// anything to cause.
+async function unlock(silent = false) {
+  if (!dbClient) {
+    if (!silent) {
+      loginMsg.className = 'msg error';
+      loginMsg.textContent = 'The page did not load correctly (see the message at the top). Try refreshing.';
+    }
+    return;
+  }
+
+  const value = silent ? loadSession() : document.getElementById('passInput').value;
+  if (!value) {
+    if (!silent) {
+      loginMsg.className = 'msg error';
+      loginMsg.textContent = 'Enter the passphrase first.';
+    }
+    return;
+  }
+
+  if (!silent) {
+    loginMsg.className = 'msg';
+    loginMsg.textContent = '';
+  }
+
+  let result;
+  try {
+    // fn_get_rounds doubles as a passphrase check: wrong passphrase -> error.
+    result = await dbClient.rpc('fn_get_rounds', { p_passphrase: value, p_grade: '3' });
+  } catch (err) {
+    // A thrown error here (rather than a normal {error} response) usually
+    // means the request never reached Supabase at all — wrong project URL,
+    // no internet connection, or a CORS/network block.
+    if (silent) { clearSession(); return; }
+    loginMsg.className = 'msg error';
+    loginMsg.textContent = 'Could not reach the database. Check the SUPABASE_URL at the top of this file and your internet connection. (' + err.message + ')';
+    console.error('Unlock request failed:', err);
+    return;
+  }
+
+  const { error } = result;
+  if (error) {
+    if (silent) { clearSession(); return; }
+    loginMsg.className = 'msg error';
+    // Show the real database message rather than assuming it's always a
+    // wrong passphrase — e.g. "Could not find the function..." means
+    // schema.sql hasn't been run successfully yet.
+    loginMsg.textContent = error.message || 'Something went wrong.';
+    console.error('Unlock error:', error);
+    return;
+  }
+
+  passphrase = value;
+  saveSession(value);
+  loginCard.classList.add('hidden');
+  dashboard.classList.remove('hidden');
+  document.getElementById('lockBtn').classList.remove('hidden');
+
+  // The <select> itself survives a page refresh (browsers restore form
+  // control values on their own), but the currentGrade variable does not —
+  // it always starts back at the '3' it was declared with. Without this
+  // line, that mismatch is exactly what caused the dashboard to silently
+  // reload Grade 3's data while the dropdown kept showing whatever grade
+  // was last selected. Reading the select's live value here keeps the two
+  // in sync on every load, refresh or not.
+  currentGrade = gradeSelect.value || 'ALL';
+
+  loadGrade(currentGrade);
+  refreshFinalVote();
+  refreshArchiveReset();
+}
+
+function lock() {
+  clearSession();
+  passphrase = null;
+  document.getElementById('passInput').value = '';
+  dashboard.classList.add('hidden');
+  document.getElementById('lockBtn').classList.add('hidden');
+  loginCard.classList.remove('hidden');
+}
+
+document.getElementById('lockBtn').addEventListener('click', lock);
+
+// Try to auto-unlock with a remembered passphrase before showing the login
+// screen at all — most refreshes should skip straight to the dashboard.
+unlock(/* silent = */ true);
+
+/* ------------------------- GRADE SWITCHING ------------------------ */
+gradeSelect.addEventListener('change', () => {
+  currentGrade = gradeSelect.value;
+  loadGrade(currentGrade);
+});
+
+async function loadGrade(grade) {
+  const tableCard = document.getElementById('tableCard');
+  const endVotingCard = document.getElementById('endVotingCard');
+
+  if (grade === 'ALL') {
+    tableCard.classList.add('hidden');
+    endVotingCard.classList.add('hidden');
+    document.getElementById('roundsHeading').textContent = 'Rounds — all grades';
+    await renderOverallRounds();
+  } else {
+    tableCard.classList.remove('hidden');
+    endVotingCard.classList.remove('hidden');
+    document.getElementById('roundsHeading').textContent = `Rounds — Grade ${grade}`;
+    document.getElementById('tableHeading').textContent = `Grade ${grade} questions`;
+    await renderRoundsForGrade(grade);
+    await renderQuestionTable(grade);
+    await refreshEndVotingSection(grade);
+  }
+}
+
+/* --------------------------------------------------------------------
+ * STUDENT LOOKUP
+ * Independent of the grade dropdown — looks a student ID up across every
+ * grade in one call, since the teacher shouldn't have to know/select the
+ * right grade first just to find one student.
+ *
+ * Relies on a new database function, fn_admin_student_lookup, which is NOT
+ * part of the original schema this page shipped with. See the accompanying
+ * student_lookup.sql for the function to add in the Supabase SQL editor —
+ * it's written to match the table/column names implied by the other RPCs
+ * on this page (questions / votes / rounds), but you should sanity-check
+ * it against your actual schema before running it, since this page alone
+ * doesn't show that schema.
+ *
+ * Expected shape of the JSON the RPC returns:
+ * {
+ *   "questions": [
+ *     { "grade": "4", "question": "...", "eliminated": false,
+ *       "total_votes": 7, "votes_by_round": [{"round_number":1,"votes":3}, ...] }
+ *   ],
+ *   "votes_cast": [
+ *     { "grade": "4", "round_number": 2, "question": "...", "author_student_id": "1099" }
+ *   ]
+ * }
+ * ------------------------------------------------------------------*/
+const studentLookupBtn = document.getElementById('studentLookupBtn');
+const studentLookupInput = document.getElementById('studentLookupInput');
+
+studentLookupBtn.addEventListener('click', () => runStudentLookup());
+studentLookupInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runStudentLookup();
+});
+
+function runStudentLookup() {
+  const id = studentLookupInput.value.trim();
+  const msgEl = document.getElementById('studentLookupMsg');
+  if (!id) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = 'Enter a student ID first.';
+    return;
+  }
+  lookupStudent(id);
+}
+
+async function lookupStudent(studentId) {
+  const msgEl = document.getElementById('studentLookupMsg');
+  const resultsEl = document.getElementById('studentLookupResults');
+  msgEl.className = 'msg';
+  msgEl.textContent = '';
+  resultsEl.classList.add('hidden');
+
+  const { data, error } = await dbClient.rpc('fn_admin_student_lookup', {
+    p_passphrase: passphrase,
+    p_student_id: studentId
+  });
+
+  if (error) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = error.message;
+    return;
+  }
+
+  const questions = (data && data.questions) || [];
+  const votesCast = (data && data.votes_cast) || [];
+
+  if (questions.length === 0 && votesCast.length === 0) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = `No records found for student ID "${studentId}".`;
+    return;
+  }
+
+  document.getElementById('studentLookupHeading').textContent = `Student ${studentId}`;
+
+  // ---- Table 1: questions submitted + votes received ----
+  const qBody = document.getElementById('studentQuestionsBody');
+  const qEmpty = document.getElementById('studentQuestionsEmpty');
+  qBody.innerHTML = '';
+  if (questions.length === 0) {
+    qEmpty.classList.remove('hidden');
+  } else {
+    qEmpty.classList.add('hidden');
+    questions.forEach(q => {
+      const roundBreakdown = (q.votes_by_round || [])
+        .map(v => `R${v.round_number}: ${v.votes}`)
+        .join(', ') || '—';
+      const tr = document.createElement('tr');
+      if (q.eliminated) tr.className = 'eliminated';
+      tr.innerHTML = `
+        <td>Grade ${escapeHtml(String(q.grade))}</td>
+        <td>${escapeHtml(q.question)} ${q.eliminated ? '<span class="tag">out</span>' : ''}</td>
+        <td>${q.eliminated ? 'Eliminated' : 'Active'}</td>
+        <td>${escapeHtml(roundBreakdown)}</td>
+        <td>${q.total_votes}</td>`;
+      qBody.appendChild(tr);
+    });
+  }
+
+  // ---- Table 2: votes cast, by round ----
+  const vBody = document.getElementById('studentVotesBody');
+  const vEmpty = document.getElementById('studentVotesEmpty');
+  vBody.innerHTML = '';
+  if (votesCast.length === 0) {
+    vEmpty.classList.remove('hidden');
+  } else {
+    vEmpty.classList.add('hidden');
+    // Sort by grade then round so the history reads chronologically.
+    [...votesCast]
+      .sort((a, b) => String(a.grade).localeCompare(String(b.grade)) || a.round_number - b.round_number)
+      .forEach(v => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>Grade ${escapeHtml(String(v.grade))}</td>
+          <td>${ordinalWord(v.round_number)}</td>
+          <td>${escapeHtml(v.question)}</td>
+          <td>${escapeHtml(v.author_student_id)}</td>`;
+        vBody.appendChild(tr);
+      });
+  }
+
+  resultsEl.classList.remove('hidden');
+}
+
+/* --------------------------------------------------------------------
+ * ROUNDS PANEL (single grade)
+ * ------------------------------------------------------------------*/
+async function renderRoundsForGrade(grade) {
+  const el = document.getElementById('roundsContent');
+  el.innerHTML = 'Loading…';
+
+  const { data: rounds, error } = await dbClient.rpc('fn_get_rounds', { p_passphrase: passphrase, p_grade: grade });
+  if (error) { el.innerHTML = `<p>Could not load rounds: ${escapeHtml(error.message)}</p>`; return; }
+
+  el.innerHTML = buildRoundsHtml(grade, rounds);
+  wireRoundButtons(grade, rounds);
+}
+
+function buildRoundsHtml(grade, rounds, readOnly) {
+  const votingOpen = rounds.length ? rounds[rounds.length - 1].voting_open : true;
+  let html = '';
+
+  rounds.forEach(r => {
+    if (r.round_status === 'ended') {
+      html += `
+        <div class="roundline">
+          <span class="label">Round ${ordinalWord(r.round_number)}</span>
+          <span class="stats">${r.voters} voter${r.voters === 1 ? '' : 's'} · ${r.votes_cast} vote${r.votes_cast === 1 ? '' : 's'} cast</span>
+        </div>`;
+    } else {
+      html += `
+        <div class="roundline">
+          <span class="label">Round ${ordinalWord(r.round_number)} — active (${r.votes_per_student} vote${r.votes_per_student === 1 ? '' : 's'} per student)</span>
+          ${readOnly ? '' : `<button class="ghost end-round-btn" data-grade="${grade}">End Round</button>`}
+        </div>`;
+    }
+  });
+
+  if (!votingOpen) {
+    html += `<p style="color:#5c6b60; font-weight:700;">Voting has been ended for this grade — no new rounds can start.</p>`;
+  } else if (!readOnly) {
+    const hasActive = rounds.some(r => r.round_status === 'active');
+    const nextRound = rounds.length + 1;
+    if (!hasActive && nextRound <= 30) {
+      html += `
+        <div class="roundline">
+          <span class="label">Round ${ordinalWord(nextRound)}</span>
+          <div class="row">
+            <div>
+              <label style="margin:0 0 2px;">Votes per student</label>
+              <input type="number" min="1" value="1" style="width:80px;" id="vps-${grade}">
+            </div>
+            <button class="start-round-btn" data-grade="${grade}">Start Round</button>
+          </div>
+        </div>`;
+    } else if (!hasActive && nextRound > 30) {
+      html += `<p style="color:#5c6b60; font-weight:700;">Maximum of 30 rounds reached for this grade.</p>`;
+    }
+  }
+
+  return html;
+}
+
+function wireRoundButtons(grade, rounds) {
+  document.querySelectorAll('.start-round-btn').forEach(btn => {
+    btn.addEventListener('click', () => startRound(btn.dataset.grade));
+  });
+  document.querySelectorAll('.end-round-btn').forEach(btn => {
+    btn.addEventListener('click', () => endRound(btn.dataset.grade));
+  });
+}
+
+async function startRound(grade) {
+  const vpsInput = document.getElementById(`vps-${grade}`);
+  const vps = vpsInput ? Math.max(1, parseInt(vpsInput.value || '1', 10)) : 1;
+
+  const label = grade === 'ALL' ? 'every grade' : `Grade ${grade}`;
+  if (!confirm(`Start the next round for ${label} with ${vps} vote(s) per student?`)) return;
+
+  const msgEl = document.getElementById('roundsMsg');
+  msgEl.className = 'msg';
+
+  if (grade === 'ALL') {
+    const results = await Promise.all(ALL_GRADES.map(g =>
+      dbClient.rpc('fn_start_round', { p_passphrase: passphrase, p_grade: g, p_votes_per_student: vps })
+    ));
+    reportBatchResult(results, msgEl, 'started');
+    renderOverallRounds();
+  } else {
+    const { error } = await dbClient.rpc('fn_start_round', { p_passphrase: passphrase, p_grade: grade, p_votes_per_student: vps });
+    if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
+    renderRoundsForGrade(grade);
+  }
+}
+
+async function endRound(grade) {
+  const label = grade === 'ALL' ? 'every grade' : `Grade ${grade}`;
+  if (!confirm(`End the current round for ${label}? No more votes will be accepted for it.`)) return;
+
+  const msgEl = document.getElementById('roundsMsg');
+  msgEl.className = 'msg';
+
+  if (grade === 'ALL') {
+    const results = await Promise.all(ALL_GRADES.map(g =>
+      dbClient.rpc('fn_end_round', { p_passphrase: passphrase, p_grade: g })
+    ));
+    reportBatchResult(results, msgEl, 'ended');
+    renderOverallRounds();
+  } else {
+    const { error } = await dbClient.rpc('fn_end_round', { p_passphrase: passphrase, p_grade: grade });
+    if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
+    renderRoundsForGrade(grade);
+    renderQuestionTable(grade);
+  }
+}
+
+function reportBatchResult(results, msgEl, verb) {
+  const failed = results.filter(r => r.error);
+  if (failed.length === 0) {
+    msgEl.className = 'msg ok';
+    msgEl.textContent = `Round ${verb} for all grades.`;
+  } else {
+    msgEl.className = 'msg error';
+    msgEl.textContent = `Some grades could not be updated: ${failed.map(f => f.error.message).join('; ')}`;
+  }
+}
+
+/* --------------------------------------------------------------------
+ * ROUNDS PANEL (overall view — read-only mini summaries for all grades)
+ * ------------------------------------------------------------------*/
+async function renderOverallRounds() {
+  const el = document.getElementById('roundsContent');
+  el.innerHTML = 'Loading…';
+
+  const results = await Promise.all(ALL_GRADES.map(g =>
+    dbClient.rpc('fn_get_rounds', { p_passphrase: passphrase, p_grade: g })
+  ));
+
+  // Controls that act on ALL grades at once — this is the actual "Overall"
+  // action. The read-only per-grade summaries below just show where each
+  // grade currently stands (they may differ if you've been managing grades
+  // individually up to this point).
+  let html = `
+    <div class="roundline">
+      <span class="label">Apply to every grade</span>
+      <div class="row">
+        <div>
+          <label style="margin:0 0 2px;">Votes per student</label>
+          <input type="number" min="1" value="1" style="width:80px;" id="vps-ALL">
+        </div>
+        <button class="start-round-btn" data-grade="ALL">Start Round (all)</button>
+        <button class="ghost end-round-btn" data-grade="ALL">End Round (all)</button>
+      </div>
+    </div>
+  `;
+
+  ALL_GRADES.forEach((g, i) => {
+    const rounds = results[i].data || [];
+    html += `<h2 style="font-size:1.1rem; margin-top:18px;">Grade ${g} (read-only summary)</h2>`;
+    html += buildRoundsHtml(g, rounds, /*readOnly=*/true);
+  });
+  el.innerHTML = html;
+  wireRoundButtons();
+}
+
+/* --------------------------------------------------------------------
+ * QUESTION TABLE
+ * ------------------------------------------------------------------*/
+async function renderQuestionTable(grade) {
+  const body = document.getElementById('tableBody');
+  const empty = document.getElementById('tableEmpty');
+  body.innerHTML = '';
+
+  const { data, error } = await dbClient.rpc('fn_admin_list', { p_passphrase: passphrase, p_grade: grade });
+  if (error || !data || data.length === 0) {
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  data.forEach(q => {
+    const tr = document.createElement('tr');
+    if (q.eliminated) tr.className = 'eliminated';
+    tr.innerHTML = `
+      <td>${escapeHtml(q.student_id)}</td>
+      <td>${escapeHtml(q.question)} ${q.eliminated ? '<span class="tag">out</span>' : ''}</td>
+      <td>${q.last_round_votes}</td>
+      <td>${q.total_votes}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+/* --------------------------------------------------------------------
+ * END VOTING / TOP 5
+ * ------------------------------------------------------------------*/
+async function refreshEndVotingSection(grade) {
+  const top5Wrap = document.getElementById('top5Wrap');
+  const endBtn = document.getElementById('endVotingBtn');
+  top5Wrap.classList.add('hidden');
+
+  const { data: statusRows } = await dbClient.rpc('fn_get_round_status', { p_grade: grade });
+  const votingOpen = statusRows && statusRows[0] ? statusRows[0].voting_open : true;
+
+  if (!votingOpen) {
+    endBtn.disabled = true;
+    endBtn.textContent = 'Voting already ended';
+    await showTop5(grade);
+  } else {
+    endBtn.disabled = false;
+    endBtn.textContent = 'End voting';
+  }
+
+  endBtn.onclick = () => endVoting(grade);
+}
+
+async function endVoting(grade) {
+  if (!confirm(`End voting completely for Grade ${grade}? This cannot be undone.`)) return;
+  const { error } = await dbClient.rpc('fn_end_voting', { p_passphrase: passphrase, p_grade: grade });
+  if (error) { alert(error.message); return; }
+  await renderRoundsForGrade(grade);
+  await renderQuestionTable(grade);
+  await refreshEndVotingSection(grade);
+  await refreshFinalVote(); // ending this grade might be the last one needed to unlock it
+  await refreshArchiveReset();
+}
+
+async function showTop5(grade) {
+  const { data } = await dbClient.rpc('fn_admin_list', { p_passphrase: passphrase, p_grade: grade });
+  if (!data) return;
+  const top5 = [...data].sort((a, b) => b.total_votes - a.total_votes).slice(0, 5);
+
+  const list = document.getElementById('top5List');
+  list.innerHTML = top5.map(q => `
+    <li>
+      <span class="who">Student ${escapeHtml(q.student_id)} · ${q.total_votes} vote${q.total_votes === 1 ? '' : 's'}</span>
+      ${escapeHtml(q.question)}
+    </li>`).join('');
+
+  document.getElementById('top5Wrap').classList.remove('hidden');
+}
+
+/* --------------------------------------------------------------------
+ * FINAL VOTE (independent of the grade dropdown — spans all grades)
+ * ------------------------------------------------------------------*/
+async function refreshFinalVote() {
+  const el = document.getElementById('finalVoteContent');
+  const msgEl = document.getElementById('finalVoteMsg');
+  msgEl.className = 'msg';
+  el.innerHTML = 'Loading…';
+
+  const { data: statusRows } = await dbClient.rpc('fn_get_final_status');
+  const status = statusRows && statusRows[0] ? statusRows[0].status : 'not_started';
+
+  // fn_get_final_results doubles as "are there candidates yet" — safe to
+  // call even before the final round starts (returns an empty list).
+  const { data: results } = await dbClient.rpc('fn_get_final_results', { p_passphrase: passphrase });
+
+  if (status === 'not_started') {
+    const closed = await allGradesClosed();
+    if (closed) {
+      el.innerHTML = `<button id="startFinalBtn">Start final vote</button>`;
+      document.getElementById('startFinalBtn').addEventListener('click', startFinalVote);
+    } else {
+      el.innerHTML = `<p style="color:#5c6b60; font-weight:700;">Unlocks once all four grades have had their voting ended.</p>`;
+    }
+    return;
+  }
+
+  const rowsHtml = (results || []).map(r => `
+    <tr>
+      <td>Grade ${r.grade}</td>
+      <td>${escapeHtml(r.student_id)}</td>
+      <td>${escapeHtml(r.question)}</td>
+      <td>${r.votes}</td>
+    </tr>`).join('');
+
+  const table = `
+    <table>
+      <thead><tr><th>Grade</th><th>Student ID</th><th>Question</th><th>Votes</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+
+  if (status === 'active') {
+    el.innerHTML = `
+      <p style="font-weight:700; color:#5c6b60;">The final vote is open.</p>
+      ${table}
+      <button class="danger" id="endFinalBtn" style="margin-top:14px;">End final vote</button>`;
+    document.getElementById('endFinalBtn').addEventListener('click', endFinalVote);
+  } else if (status === 'ended') {
+    const winner = (results && results[0]) || null;
+    el.innerHTML = `
+      ${winner ? `<p style="font-weight:800; font-size:1.1rem;">🏆 Winner: Grade ${winner.grade} — "${escapeHtml(winner.question)}" (${winner.votes} vote${winner.votes === 1 ? '' : 's'})</p>` : ''}
+      ${table}`;
+  }
+}
+
+async function allGradesClosed() {
+  const results = await Promise.all(ALL_GRADES.map(g => dbClient.rpc('fn_get_round_status', { p_grade: g })));
+  return results.every(r => r.data && r.data[0] && r.data[0].voting_open === false);
+}
+
+async function startFinalVote() {
+  if (!confirm('Start the final vote? This pulls each grade\'s current top question — make sure every grade has ended voting first.')) return;
+  const { error } = await dbClient.rpc('fn_start_final_vote', { p_passphrase: passphrase });
+  const msgEl = document.getElementById('finalVoteMsg');
+  if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
+  refreshFinalVote();
+  refreshArchiveReset();
+}
+
+async function endFinalVote() {
+  if (!confirm('End the final vote? No more votes will be accepted.')) return;
+  const { error } = await dbClient.rpc('fn_end_final_vote', { p_passphrase: passphrase });
+  const msgEl = document.getElementById('finalVoteMsg');
+  if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
+  refreshFinalVote();
+  refreshArchiveReset(); // ending the final vote is also what unlocks archiving
+}
+
+/* --------------------------------------------------------------------
+ * ARCHIVE & RESET (independent of the grade dropdown — spans all grades)
+ * ------------------------------------------------------------------*/
+async function refreshArchiveReset() {
+  const el = document.getElementById('archiveResetContent');
+  const msgEl = document.getElementById('archiveResetMsg');
+  msgEl.className = 'msg';
+  el.innerHTML = 'Loading…';
+
+  const closed = await allGradesClosed();
+  if (!closed) {
+    el.innerHTML = `<p style="color:#5c6b60; font-weight:700;">Unlocks once all four grades have had their voting ended.</p>`;
+    return;
+  }
+
+  const { data: statusRows } = await dbClient.rpc('fn_get_final_status');
+  const finalStatus = statusRows && statusRows[0] ? statusRows[0].status : 'not_started';
+
+  if (finalStatus === 'active') {
+    el.innerHTML = `<p style="color:#5c6b60; font-weight:700;">The final vote is still active — end it above before archiving.</p>`;
+    return;
+  }
+
+  el.innerHTML = `<button class="danger" id="archiveResetBtn">Archive top questions &amp; reset everything</button>`;
+  document.getElementById('archiveResetBtn').addEventListener('click', archiveAndReset);
+}
+
+async function archiveAndReset() {
+  // Two confirmations given this permanently deletes data — a single
+  // dialog is what every other action here uses, but this one is
+  // irreversible in a way that losing a round or a vote isn't.
+  const step1 = confirm(
+    'This saves the top 3 questions per grade (and the final result, if one ran) to the archive, ' +
+    'then PERMANENTLY DELETES every question, vote, and round for all grades so the board is ready ' +
+    'for a new cycle.\n\nThis cannot be undone. Continue?'
+  );
+  if (!step1) return;
+
+  const step2 = confirm('Are you absolutely sure? All current questions and votes will be gone for good.');
+  if (!step2) return;
+
+  const msgEl = document.getElementById('archiveResetMsg');
+  msgEl.className = 'msg';
+
+  const { error } = await dbClient.rpc('fn_archive_and_reset', { p_passphrase: passphrase });
+  if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
+
+  msgEl.className = 'msg ok';
+  msgEl.textContent = 'Archived! The board has been reset — view saved results on the archive page.';
+
+  // Everything currently on screen needs to reflect the wipe.
+  await loadGrade(currentGrade);
+  await refreshFinalVote();
+  await refreshArchiveReset();
+}
+
+/* --------------------------------- utils --------------------------------- */
+function ordinalWord(n) {
+  const words = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+    'Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen','Twenty',
+    'Twenty-One','Twenty-Two','Twenty-Three','Twenty-Four','Twenty-Five','Twenty-Six','Twenty-Seven','Twenty-Eight','Twenty-Nine','Thirty'];
+  return words[n] || n;
+}
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+})(); // end of main()
+</script>
+
+</body>
+</html>
