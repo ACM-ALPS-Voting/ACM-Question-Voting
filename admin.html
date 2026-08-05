@@ -157,6 +157,7 @@
     font-family:'Patrick Hand', cursive; font-size:1.05rem; display:block;
     margin-bottom:2px; color: var(--accent-dark);
   }
+  .grade-summary-excluded{ color: var(--error); font-weight:800; }
   .eyebrow-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 4px; }
   .spiral-icon{ width:26px; height:26px; flex-shrink:0; opacity:.9; }
   .tagline{
@@ -724,6 +725,7 @@ async function refreshGradeSummary() {
     <li class="grade-summary-item">
       <span class="grade-summary-name">Grade ${escapeHtml(row.grade)}</span>
       ${row.submitted} submitted &middot; ${row.remaining} remaining &middot; ${row.votes_cast} vote${row.votes_cast === 1 ? '' : 's'} cast
+      ${row.excluded > 0 ? `<br><span class="grade-summary-excluded">${row.excluded} excluded</span>` : ''}
     </li>`).join('');
 }
 
