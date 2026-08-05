@@ -241,6 +241,7 @@
   .msg{ margin-top:14px; padding:10px 14px; border-radius:8px; font-weight:700; font-size:.9rem; display:none; }
   .msg.ok{ display:block; background:#E4F0E6; color: var(--ok); }
   .msg.error{ display:block; background:#FBE4E1; color: var(--error); }
+  .msg.info{ display:block; background:#EFEAD9; color:#5c6b60; }
 
   .top5{ list-style: decimal; padding-left: 22px; }
   .top5 li{ margin-bottom:8px; font-weight:600; }
@@ -1156,7 +1157,17 @@ async function startRound(grade) {
     const results = await Promise.all(ALL_GRADES.map(g =>
       dbClient.rpc('fn_start_round', { p_passphrase: passphrase, p_grade: g, p_votes_per_student: vps })
     ));
-    reportBatchResult(results, msgEl, 'started');
+    // Grades that already have an active round, already ended voting, or hit
+    // the 30-round cap aren't bugs — they're just grades this action can't
+    // apply to right now (e.g. Grade 4's round was already started on its
+    // own before you clicked "Start Round (all)"). Those are reported as
+    // plain skips, not errors, so the other grades' success isn't drowned
+    // out by scary red text — see reportBatchResult().
+    reportBatchResult(ALL_GRADES, results, msgEl, 'Round started', {
+      'Voting has already been ended for this grade.': 'voting already ended',
+      'A round is already active for this grade.': 'a round is already in progress',
+      'Maximum of 30 rounds already reached for this grade.': 'round limit reached',
+    });
     renderOverallRounds();
   } else {
     const { error } = await dbClient.rpc('fn_start_round', { p_passphrase: passphrase, p_grade: grade, p_votes_per_student: vps });
@@ -1177,7 +1188,12 @@ async function endRound(grade) {
     const results = await Promise.all(ALL_GRADES.map(g =>
       dbClient.rpc('fn_end_round', { p_passphrase: passphrase, p_grade: g })
     ));
-    reportBatchResult(results, msgEl, 'ended');
+    // Same idea as startRound's "ALL" branch: a grade with no active round
+    // (never started, or already ended) isn't an error condition here —
+    // it's simply a grade this action doesn't apply to.
+    reportBatchResult(ALL_GRADES, results, msgEl, 'Round ended', {
+      'No active round for this grade.': 'no round was in progress',
+    });
     renderOverallRounds();
   } else {
     const { error } = await dbClient.rpc('fn_end_round', { p_passphrase: passphrase, p_grade: grade });
@@ -1188,14 +1204,49 @@ async function endRound(grade) {
   refreshGradeSummary(); // ending a round can eliminate zero-vote questions, changing "remaining"
 }
 
-function reportBatchResult(results, msgEl, verb) {
-  const failed = results.filter(r => r.error);
-  if (failed.length === 0) {
-    msgEl.className = 'msg ok';
-    msgEl.textContent = `Round ${verb} for all grades.`;
-  } else {
+// Summarizes a Promise.all batch of one fn_start_round/fn_end_round call per
+// grade (each grade's call is independent, so grades that succeeded are
+// already saved regardless of what happened with the others) into a single
+// status line. `benignMessages` maps an exact error message to a short,
+// human explanation of why that grade was skipped — those grades are
+// reported as plain skips. Any OTHER error message is treated as a real,
+// unexpected failure and still shown in red.
+function reportBatchResult(grades, results, msgEl, pastTenseVerb, benignMessages) {
+  const succeeded = [];
+  const skipped = [];
+  const failed = [];
+
+  results.forEach((r, i) => {
+    const g = grades[i];
+    if (!r.error) {
+      succeeded.push(g);
+    } else if (benignMessages[r.error.message]) {
+      skipped.push(`Grade ${g} (${benignMessages[r.error.message]})`);
+    } else {
+      failed.push(`Grade ${g}: ${r.error.message}`);
+    }
+  });
+
+  const parts = [];
+  if (succeeded.length) {
+    parts.push(`${pastTenseVerb} for Grade${succeeded.length > 1 ? 's' : ''} ${succeeded.join(', ')}.`);
+  }
+  if (skipped.length) {
+    parts.push(`Skipped ${skipped.join('; ')}.`);
+  }
+
+  if (failed.length) {
     msgEl.className = 'msg error';
-    msgEl.textContent = `Some grades could not be updated: ${failed.map(f => f.error.message).join('; ')}`;
+    msgEl.textContent = `${parts.join(' ')} Could not update: ${failed.join('; ')}`.trim();
+  } else if (succeeded.length && !skipped.length) {
+    msgEl.className = 'msg ok';
+    msgEl.textContent = parts.join(' ');
+  } else {
+    // Either a mix of succeeded+skipped, or nothing at all needed doing
+    // (e.g. every grade already had an active round) — informational
+    // either way, not an error.
+    msgEl.className = 'msg info';
+    msgEl.textContent = parts.length ? parts.join(' ') : 'Nothing to do — every grade is already in that state.';
   }
 }
 
