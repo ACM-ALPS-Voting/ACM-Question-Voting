@@ -513,8 +513,8 @@
     <div class="card">
       <h2>QR codes</h2>
       <p style="font-size:.9rem; color:#5c6b60;">
-        Generates one scannable code per grade linking straight to that grade's voting page,
-        plus one for the final vote. Print these to hand out or post in the classroom.
+        Generates a scannable code for the submission page, one per grade linking straight to
+        that grade's voting page, and one for the final vote. Print these to hand out or post in the classroom.
       </p>
       <div class="row">
         <button id="generateQrBtn">Generate QR codes</button>
@@ -748,9 +748,13 @@ function generateQrCodes() {
   const grid = document.getElementById('qrGrid');
   grid.innerHTML = '';
 
-  // Grade codes plus a fifth for the final vote — handing this one out
-  // early is harmless, it just shows "hasn't started yet" until you do.
+  // Submission first (it's the first thing students scan each cycle), then
+  // grade codes, then a final one for the final vote — handing all of these
+  // out early is harmless, submission simply won't accept anything until
+  // you open it (see the Submissions toggle) and the final vote link just
+  // shows "hasn't started yet" until you start it.
   const items = [
+    { label: 'Submission', url: `${base}submission.html` },
     { label: 'Grade 3', url: `${base}voting.html?grade=3` },
     { label: 'Grade 4', url: `${base}voting.html?grade=4` },
     { label: 'Grade 5', url: `${base}voting.html?grade=5` },
