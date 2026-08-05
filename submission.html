@@ -313,6 +313,46 @@ function showMessage(text, type) {
   msgEl.className = 'msg ' + type;
 }
 
+/* --------------------------------------------------------------------
+ * SUBMISSIONS OPEN/CLOSED
+ * The teacher toggles this from admin.html (see the sidebar there); it's
+ * stored in the database so it applies to every student's device, not
+ * just this browser. fn_get_submissions_open() is a public RPC — no
+ * passphrase needed to read it, since it's not sensitive, just a status.
+ *
+ * NOTE: this is a convenience for students, not a security boundary. A
+ * closed form here just hides the button — it can't stop someone from
+ * calling fn_submit_question directly. The real enforcement needs to live
+ * server-side, inside fn_submit_question itself (see the comment in
+ * schema-submissions-toggle.sql). If that server-side check hasn't been
+ * added yet, treat this front-end gate as "soft" only.
+ * ------------------------------------------------------------------*/
+async function submissionsAreOpen() {
+  const { data, error } = await dbClient.rpc('fn_get_submissions_open');
+  if (error) {
+    console.error('fn_get_submissions_open error:', error);
+    // If we can't confirm the status, fail closed rather than open — a
+    // student who can't submit for a minute is a much smaller problem
+    // than accepting submissions the teacher meant to have blocked.
+    return false;
+  }
+  return !!data;
+}
+
+// Disables every control in the form and shows an explanatory message.
+// Used both for the initial "closed on page load" case and if the teacher
+// closes submissions while a student already has this page open.
+function showClosedState() {
+  form.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = true; });
+  showMessage('Submissions are currently closed. Check back once your teacher opens them again.', 'error');
+}
+
+// Checked once up front so the form doesn't even look usable if
+// submissions are already closed when the page loads.
+if (!(await submissionsAreOpen())) {
+  showClosedState();
+}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   msgEl.className = 'msg';
@@ -324,6 +364,13 @@ form.addEventListener('submit', async (e) => {
   if (!grade) { showMessage('Please choose your grade.', 'error'); return; }
   if (!studentId) { showMessage('Please enter your Student ID.', 'error'); return; }
   if (!question) { showMessage('Please type a question.', 'error'); return; }
+
+  // Re-check right before sending, in case the teacher closed submissions
+  // after this page loaded but before the student hit Submit.
+  if (!(await submissionsAreOpen())) {
+    showClosedState();
+    return;
+  }
 
   submitBtn.disabled = true;
   submitBtn.textContent = 'Submitting…';

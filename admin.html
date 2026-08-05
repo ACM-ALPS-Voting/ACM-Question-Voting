@@ -85,6 +85,32 @@
      lock() toggle it alongside the dashboard itself (see the JS below). */
   .sidebar button{ width:100%; margin-top:14px; }
   .sidebar h2{ font-family:'Patrick Hand', cursive; font-size:1.3rem; margin:0 0 14px; color: var(--ink); text-align:center; }
+
+  /* ------------------- submissions open/closed toggle ------------------- */
+  /* Sits above "Pages" at the very top of the sidebar. The colored dot +
+     label reflect the current state (fetched from the database, so it's
+     accurate for every visitor, not just this browser tab); the button
+     below it flips that state. Changing the state is an admin action, so
+     the button starts disabled and only becomes clickable once the
+     teacher has unlocked the dashboard (see setSubmissionsToggleEnabled()
+     in the script). */
+  .submissions-toggle{
+    margin-bottom:18px; padding-bottom:16px; border-bottom:2px solid var(--line);
+  }
+  .submissions-status{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    margin-bottom:10px; font-weight:800; font-size:.85rem; color:#5c6b60;
+  }
+  .submissions-dot{
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
+    background: var(--muted);           /* default: status not loaded yet */
+  }
+  .submissions-dot.open{ background: var(--ok); }
+  .submissions-dot.closed{ background: var(--error); }
+  .submissions-toggle button{ margin-top:0; } /* override .sidebar button's margin-top, this is the first control */
+  .submissions-hint{
+    font-size:.72rem; color:#5c6b60; font-weight:700; text-align:center; margin:8px 0 0;
+  }
   .eyebrow-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 4px; }
   .spiral-icon{ width:26px; height:26px; flex-shrink:0; opacity:.9; }
   .tagline{
@@ -238,6 +264,28 @@
        split them across folders, these links (and the QR codes below) will
        need editing to match. -->
   <aside class="sidebar card">
+
+    <!-- ==================== SUBMISSIONS OPEN/CLOSED ==================== -->
+    <!-- Lets the teacher open or close new question submissions without
+         touching anything else on the board. The dot/label are read from
+         the database (fn_get_submissions_open — a public RPC, no
+         passphrase required) so they're accurate for anyone who loads this
+         page, logged in or not. Toggling is an admin action though, so the
+         button itself stays disabled until the teacher unlocks the
+         dashboard below; setSubmissionsToggleEnabled() flips that on
+         unlock()/lock() (see the script). Requires the board_settings
+         table plus fn_get_submissions_open/fn_set_submissions_open
+         functions from schema-submissions-toggle.sql — run that against
+         your Supabase project once, alongside the original schema.sql. -->
+    <div class="submissions-toggle">
+      <div class="submissions-status">
+        <span class="submissions-dot" id="submissionsDot"></span>
+        <span id="submissionsStatusText">Checking…</span>
+      </div>
+      <button type="button" id="submissionsToggleBtn" disabled>…</button>
+      <p class="submissions-hint hidden" id="submissionsHint">Unlock below to change this</p>
+    </div>
+
     <h2>Pages</h2>
     <nav class="linkbar" id="linkBar"></nav>
     <!-- Moved down here from a row above the Grade card — same lock()
@@ -502,6 +550,70 @@ function populateLinkBar() {
 }
 populateLinkBar();
 
+/* --------------------------------------------------------------------
+ * SUBMISSIONS OPEN/CLOSED TOGGLE
+ * Controls whether submission.html will accept new questions. Lives
+ * outside the login gate (like the rest of the sidebar) so the current
+ * status is always visible, but actually changing it requires the admin
+ * passphrase, same as everything inside the dashboard.
+ * ------------------------------------------------------------------*/
+const submissionsDotEl        = document.getElementById('submissionsDot');
+const submissionsStatusTextEl = document.getElementById('submissionsStatusText');
+const submissionsToggleBtnEl  = document.getElementById('submissionsToggleBtn');
+const submissionsHintEl       = document.getElementById('submissionsHint');
+
+let submissionsOpen = null; // null = not loaded from the database yet
+
+// Public read (no passphrase) — submission.html calls this same function
+// to decide whether to let a student submit at all.
+async function refreshSubmissionsStatus() {
+  const { data, error } = await dbClient.rpc('fn_get_submissions_open');
+  if (error) {
+    submissionsStatusTextEl.textContent = 'Status unavailable';
+    console.error('fn_get_submissions_open error:', error);
+    return;
+  }
+  submissionsOpen = !!data;
+  renderSubmissionsStatus();
+}
+
+// Updates the dot, label, and button text/enabled-state to match whatever
+// is currently in submissionsOpen and whether the teacher is logged in.
+function renderSubmissionsStatus() {
+  submissionsDotEl.className = 'submissions-dot' + (submissionsOpen ? ' open' : ' closed');
+  submissionsStatusTextEl.textContent = 'Submissions: ' + (submissionsOpen ? 'Open' : 'Closed');
+  submissionsToggleBtnEl.textContent = submissionsOpen ? 'Close submissions' : 'Open submissions';
+  setSubmissionsToggleEnabled(!!passphrase);
+}
+
+// Called on every status refresh, plus directly from unlock()/lock(), so
+// the button is only ever clickable while the teacher is logged in.
+function setSubmissionsToggleEnabled(loggedIn) {
+  submissionsToggleBtnEl.disabled = !loggedIn || submissionsOpen === null;
+  submissionsHintEl.classList.toggle('hidden', loggedIn);
+}
+
+submissionsToggleBtnEl.addEventListener('click', async () => {
+  if (!passphrase || submissionsOpen === null) return; // shouldn't happen while disabled, but just in case
+
+  const next = !submissionsOpen;
+  const question = next
+    ? 'Open submissions? Students will be able to submit new questions right away.'
+    : 'Close submissions? Students will no longer be able to submit new questions until you open them again.';
+  if (!confirm(question)) return;
+
+  submissionsToggleBtnEl.disabled = true;
+  const { error } = await dbClient.rpc('fn_set_submissions_open', { p_passphrase: passphrase, p_open: next });
+  if (error) {
+    alert(error.message || `Could not ${next ? 'open' : 'close'} submissions.`);
+    submissionsToggleBtnEl.disabled = false;
+    return;
+  }
+  await refreshSubmissionsStatus();
+});
+
+refreshSubmissionsStatus();
+
 const generateQrBtnEl = document.getElementById('generateQrBtn');
 const printQrBtnEl = document.getElementById('printQrBtn');
 if (generateQrBtnEl) generateQrBtnEl.addEventListener('click', generateQrCodes);
@@ -657,6 +769,7 @@ async function unlock(silent = false) {
   loginCard.classList.add('hidden');
   dashboard.classList.remove('hidden');
   document.getElementById('lockBtn').classList.remove('hidden');
+  setSubmissionsToggleEnabled(true);
 
   // The <select> itself survives a page refresh (browsers restore form
   // control values on their own), but the currentGrade variable does not —
@@ -679,6 +792,7 @@ function lock() {
   dashboard.classList.add('hidden');
   document.getElementById('lockBtn').classList.add('hidden');
   loginCard.classList.remove('hidden');
+  setSubmissionsToggleEnabled(false);
 }
 
 document.getElementById('lockBtn').addEventListener('click', lock);
