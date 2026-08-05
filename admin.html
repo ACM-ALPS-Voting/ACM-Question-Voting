@@ -111,6 +111,39 @@
   .submissions-hint{
     font-size:.72rem; color:#5c6b60; font-weight:700; text-align:center; margin:8px 0 0;
   }
+
+  /* ---------------------- per-grade sidebar summary ---------------------- */
+  /* Sits right under the submissions toggle: one line per grade with
+     questions submitted/remaining and votes cast, so the teacher can see
+     board activity at a glance without opening a card. Read-only, so
+     unlike the toggle above it there's nothing to disable — it just shows
+     a "log in" placeholder until unlocked (see refreshGradeSummary() in
+     the script). */
+  .grade-summary{
+    margin-bottom:18px; padding-bottom:16px; border-bottom:2px solid var(--line);
+  }
+  .grade-summary-heading{
+    display:flex; align-items:baseline; justify-content:space-between; gap:6px;
+    margin-bottom:8px;
+  }
+  .grade-summary-heading span{
+    font-weight:800; font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:#5c6b60;
+  }
+  .grade-summary-refresh{
+    background:none; border:none; padding:0; margin:0; width:auto;
+    font-weight:800; font-size:.72rem; color: var(--accent-dark); cursor:pointer; text-decoration:underline;
+  }
+  .grade-summary-refresh:hover{ color: var(--accent); }
+  .grade-summary-empty{ font-size:.75rem; color:#5c6b60; font-weight:700; text-align:center; margin:0; }
+  .grade-summary-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .grade-summary-item{
+    font-size:.78rem; font-weight:700; color: var(--ink); line-height:1.4;
+    background:#fff; border:2px solid var(--line); border-radius:8px; padding:8px 10px;
+  }
+  .grade-summary-name{
+    font-family:'Patrick Hand', cursive; font-size:1.05rem; display:block;
+    margin-bottom:2px; color: var(--accent-dark);
+  }
   .eyebrow-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 4px; }
   .spiral-icon{ width:26px; height:26px; flex-shrink:0; opacity:.9; }
   .tagline{
@@ -284,6 +317,24 @@
       </div>
       <button type="button" id="submissionsToggleBtn" disabled>…</button>
       <p class="submissions-hint hidden" id="submissionsHint">Unlock below to change this</p>
+    </div>
+
+    <!-- ==================== PER-GRADE STATUS SUMMARY ==================== -->
+    <!-- One line per grade: questions submitted, how many are still in the
+         running, and total votes cast. Read via fn_get_grade_summary,
+         which (unlike fn_get_submissions_open above) DOES require the
+         admin passphrase, since it's the same kind of data the dashboard
+         cards show — so this shows a "log in" placeholder until unlocked.
+         Requires fn_get_grade_summary from schema-patch-grade-summary.sql
+         (or an up-to-date schema.sql) — run that against your Supabase
+         project if this shows "Grade status unavailable." -->
+    <div class="grade-summary">
+      <div class="grade-summary-heading">
+        <span>Grades</span>
+        <button type="button" class="grade-summary-refresh" id="gradeSummaryRefreshBtn">Refresh</button>
+      </div>
+      <p class="grade-summary-empty" id="gradeSummaryEmpty">Log in below to see grade status.</p>
+      <ul class="grade-summary-list hidden" id="gradeSummaryList"></ul>
     </div>
 
     <h2>Pages</h2>
@@ -614,6 +665,53 @@ submissionsToggleBtnEl.addEventListener('click', async () => {
 
 refreshSubmissionsStatus();
 
+/* --------------------------------------------------------------------
+ * PER-GRADE STATUS SUMMARY (sidebar)
+ * A quick "submitted / remaining / votes" line per grade. Unlike the
+ * submissions toggle above it, reading this DOES require the admin
+ * passphrase (fn_get_grade_summary calls fn_check_admin internally, same
+ * as the dashboard's other admin functions), so it shows a placeholder
+ * until the teacher logs in.
+ * ------------------------------------------------------------------*/
+const gradeSummaryEmptyEl = document.getElementById('gradeSummaryEmpty');
+const gradeSummaryListEl  = document.getElementById('gradeSummaryList');
+
+async function refreshGradeSummary() {
+  if (!passphrase) {
+    gradeSummaryListEl.classList.add('hidden');
+    gradeSummaryListEl.innerHTML = '';
+    gradeSummaryEmptyEl.textContent = 'Log in below to see grade status.';
+    gradeSummaryEmptyEl.classList.remove('hidden');
+    return;
+  }
+
+  const { data, error } = await dbClient.rpc('fn_get_grade_summary', { p_passphrase: passphrase });
+  if (error) {
+    gradeSummaryListEl.classList.add('hidden');
+    gradeSummaryListEl.innerHTML = '';
+    gradeSummaryEmptyEl.textContent = 'Grade status unavailable.';
+    gradeSummaryEmptyEl.classList.remove('hidden');
+    console.error('fn_get_grade_summary error:', error);
+    return;
+  }
+
+  gradeSummaryEmptyEl.classList.add('hidden');
+  gradeSummaryListEl.classList.remove('hidden');
+  gradeSummaryListEl.innerHTML = (data || []).map(row => `
+    <li class="grade-summary-item">
+      <span class="grade-summary-name">Grade ${escapeHtml(row.grade)}</span>
+      ${row.submitted} submitted &middot; ${row.remaining} remaining &middot; ${row.votes_cast} vote${row.votes_cast === 1 ? '' : 's'} cast
+    </li>`).join('');
+}
+
+// Votes and submissions come from students on other devices, so this
+// won't update itself in real time — the refresh link lets the teacher
+// pull the latest counts on demand (e.g. mid-class) without needing to
+// switch grades or take some other action that happens to trigger a reload.
+document.getElementById('gradeSummaryRefreshBtn').addEventListener('click', refreshGradeSummary);
+
+refreshGradeSummary();
+
 const generateQrBtnEl = document.getElementById('generateQrBtn');
 const printQrBtnEl = document.getElementById('printQrBtn');
 if (generateQrBtnEl) generateQrBtnEl.addEventListener('click', generateQrCodes);
@@ -770,6 +868,7 @@ async function unlock(silent = false) {
   dashboard.classList.remove('hidden');
   document.getElementById('lockBtn').classList.remove('hidden');
   setSubmissionsToggleEnabled(true);
+  refreshGradeSummary();
 
   // The <select> itself survives a page refresh (browsers restore form
   // control values on their own), but the currentGrade variable does not —
@@ -793,6 +892,7 @@ function lock() {
   document.getElementById('lockBtn').classList.add('hidden');
   loginCard.classList.remove('hidden');
   setSubmissionsToggleEnabled(false);
+  refreshGradeSummary();
 }
 
 document.getElementById('lockBtn').addEventListener('click', lock);
@@ -1038,6 +1138,7 @@ async function startRound(grade) {
     if (error) { msgEl.className = 'msg error'; msgEl.textContent = error.message; return; }
     renderRoundsForGrade(grade);
   }
+  refreshGradeSummary();
 }
 
 async function endRound(grade) {
@@ -1059,6 +1160,7 @@ async function endRound(grade) {
     renderRoundsForGrade(grade);
     renderQuestionTable(grade);
   }
+  refreshGradeSummary(); // ending a round can eliminate zero-vote questions, changing "remaining"
 }
 
 function reportBatchResult(results, msgEl, verb) {
@@ -1169,6 +1271,7 @@ async function endVoting(grade) {
   await refreshEndVotingSection(grade);
   await refreshFinalVote(); // ending this grade might be the last one needed to unlock it
   await refreshArchiveReset();
+  await refreshGradeSummary();
 }
 
 async function showTop5(grade) {
@@ -1318,6 +1421,7 @@ async function archiveAndReset() {
   await loadGrade(currentGrade);
   await refreshFinalVote();
   await refreshArchiveReset();
+  await refreshGradeSummary();
 }
 
 /* --------------------------------- utils --------------------------------- */
