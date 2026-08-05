@@ -112,6 +112,19 @@
     font-size:.72rem; color:#5c6b60; font-weight:700; text-align:center; margin:8px 0 0;
   }
 
+  /* Plain <a> styled to look identical to .sidebar button, so
+     "Review Questions" reads as one more sidebar action rather than a
+     random link in the middle of the page. */
+  .sidebar-link-btn{
+    display:block; width:100%; box-sizing:border-box; text-align:center;
+    padding:14px; margin-bottom:18px; font-family:'Nunito',sans-serif;
+    font-size:1.05rem; font-weight:800; color:#fff; background: var(--accent);
+    border:none; border-radius:10px; text-decoration:none;
+    transition: transform .08s, background .15s;
+  }
+  .sidebar-link-btn:hover{ background: var(--accent-dark); }
+  .sidebar-link-btn:active{ transform: scale(.98); }
+
   /* ---------------------- per-grade sidebar summary ---------------------- */
   /* Sits right under the submissions toggle: one line per grade with
      questions submitted/remaining and votes cast, so the teacher can see
@@ -318,6 +331,15 @@
       <button type="button" id="submissionsToggleBtn" disabled>…</button>
       <p class="submissions-hint hidden" id="submissionsHint">Unlock below to change this</p>
     </div>
+
+    <!-- ==================== REVIEW QUESTIONS (EXCLUSIONS) ==================== -->
+    <!-- Links to exclusions.html, where the teacher can hide any
+         inappropriate question per grade before students vote. No target
+         (unlike the Pages links below) so it navigates in the same tab —
+         exclusions.html shares this page's sessionStorage login, so that
+         keeps the teacher logged in there automatically instead of asking
+         for the passphrase twice in one sitting. -->
+    <a class="sidebar-link-btn" href="exclusions.html" id="reviewQuestionsLink">Review Questions</a>
 
     <!-- ==================== PER-GRADE STATUS SUMMARY ==================== -->
     <!-- One line per grade: questions submitted, how many are still in the
@@ -591,6 +613,7 @@ function populateLinkBar() {
   linkBar.innerHTML = `
     <a href="${base}index.html" target="_blank">Home (grade picker) ↗</a>
     <a href="${base}submission.html" target="_blank">Submission page ↗</a>
+    <a href="${base}exclusions.html" target="_blank">Review Questions ↗</a>
     <a href="${base}voting.html?grade=3" target="_blank">Voting — Grade 3 ↗</a>
     <a href="${base}voting.html?grade=4" target="_blank">Voting — Grade 4 ↗</a>
     <a href="${base}voting.html?grade=5" target="_blank">Voting — Grade 5 ↗</a>

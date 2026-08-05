@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review Questions</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700;800&family=EB+Garamond:ital,wght@1,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* ===========================================================================
+     THEME — "Curious Minds" notebook (same custom properties as the other
+     pages; see submission.html for the full rationale comment). Keep this
+     block in sync with the others if you retheme.
+  =========================================================================== */
+  :root{
+    --board:      #212B42;   /* deep indigo "ink & night sky" backdrop      */
+    --board-line: #303F60;   /* soft glow worked into that backdrop         */
+    --card:       #FBF3E0;   /* aged parchment page                         */
+    --ink:        #2B241C;   /* warm sepia ink for body text                */
+    --accent:     #C1502E;   /* terracotta ink-wash — primary actions       */
+    --accent-dark:#9C3D22;
+    --gold:       #D4AF37;   /* gold leaf — highlights, badges, icons       */
+    --muted:      #8B7F68;   /* warm taupe for secondary text               */
+    --error:      #B23A2E;
+    --ok:         #4B7A52;   /* verdigris — aged bronze-green for success   */
+    --line:       #E4D6AE;   /* hairline rule/border on parchment           */
+  }
+  *{ box-sizing:border-box; }
+
+  /* Fixed golden-spiral watermark, identical to voting.html/submission.html. */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:.15;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%202738.3%202301.8%27%3E%3Cpath%20d%3D%27M1710.8%2C645.2%20L1710.9%2C645.5%20L1710.9%2C646.0%20L1710.9%2C646.4%20L1710.8%2C646.8%20L1710.7%2C647.3%20L1710.5%2C647.7%20L1710.3%2C648.2%20L1709.9%2C648.6%20L1709.6%2C649.0%20L1709.1%2C649.4%20L1708.6%2C649.7%20L1708.1%2C649.9%20L1707.4%2C650.1%20L1706.8%2C650.2%20L1706.1%2C650.2%20L1705.4%2C650.2%20L1704.7%2C650.0%20L1703.9%2C649.8%20L1703.2%2C649.4%20L1702.5%2C649.0%20L1701.9%2C648.4%20L1701.3%2C647.7%20L1700.7%2C647.0%20L1700.3%2C646.1%20L1699.9%2C645.2%20L1699.7%2C644.1%20L1699.5%2C643.0%20L1699.6%2C641.9%20L1699.7%2C640.7%20L1700.1%2C639.6%20L1700.5%2C638.4%20L1701.2%2C637.2%20L1702.0%2C636.1%20L1703.0%2C635.1%20L1704.2%2C634.2%20L1705.5%2C633.4%20L1707.0%2C632.7%20L1708.6%2C632.2%20L1710.3%2C631.9%20L1712.1%2C631.8%20L1714.0%2C632.0%20L1715.9%2C632.4%20L1717.8%2C633.1%20L1719.7%2C634.0%20L1721.5%2C635.2%20L1723.2%2C636.7%20L1724.8%2C638.4%20L1726.2%2C640.4%20L1727.4%2C642.7%20L1728.3%2C645.2%20L1729.0%2C647.8%20L1729.3%2C650.7%20L1729.2%2C653.7%20L1728.8%2C656.7%20L1727.9%2C659.8%20L1726.6%2C662.9%20L1724.9%2C665.9%20L1722.8%2C668.8%20L1720.1%2C671.5%20L1717.1%2C673.9%20L1713.6%2C676.0%20L1709.8%2C677.7%20L1705.6%2C679.0%20L1701.2%2C679.8%20L1696.4%2C680.0%20L1691.6%2C679.6%20L1686.6%2C678.6%20L1681.6%2C676.8%20L1676.6%2C674.4%20L1671.8%2C671.3%20L1667.3%2C667.4%20L1663.2%2C662.8%20L1659.5%2C657.6%20L1656.4%2C651.6%20L1653.9%2C645.2%20L1652.3%2C638.1%20L1651.4%2C630.7%20L1651.6%2C622.9%20L1652.7%2C614.9%20L1655.0%2C606.8%20L1658.3%2C598.7%20L1662.8%2C590.8%20L1668.5%2C583.3%20L1675.3%2C576.3%20L1683.3%2C569.9%20L1692.4%2C564.4%20L1702.4%2C559.9%20L1713.3%2C556.5%20L1725.1%2C554.5%20L1737.4%2C553.9%20L1750.2%2C555.0%20L1763.3%2C557.7%20L1776.4%2C562.2%20L1789.3%2C568.6%20L1801.8%2C576.8%20L1813.6%2C587.0%20L1824.5%2C598.9%20L1834.2%2C612.7%20L1842.3%2C628.2%20L1848.7%2C645.2%20L1853.1%2C663.5%20L1855.2%2C683.0%20L1854.8%2C703.4%20L1851.8%2C724.4%20L1846.0%2C745.6%20L1837.2%2C766.7%20L1825.4%2C787.3%20L1810.5%2C807.1%20L1792.6%2C825.5%20L1771.8%2C842.1%20L1748.1%2C856.6%20L1721.8%2C868.4%20L1693.2%2C877.2%20L1662.5%2C882.5%20L1630.2%2C883.9%20L1596.7%2C881.3%20L1562.5%2C874.1%20L1528.1%2C862.3%20L1494.3%2C845.6%20L1461.5%2C824.1%20L1430.6%2C797.5%20L1402.1%2C766.2%20L1376.9%2C730.1%20L1355.5%2C689.7%20L1338.8%2C645.2%20L1327.3%2C597.1%20L1321.8%2C546.1%20L1322.7%2C492.7%20L1330.6%2C437.8%20L1345.9%2C382.2%20L1368.9%2C326.9%20L1399.8%2C272.9%20L1438.7%2C221.3%20L1485.6%2C173.1%20L1540.2%2C129.5%20L1602.2%2C91.6%20L1671.0%2C60.7%20L1746.0%2C37.7%20L1826.3%2C23.9%20L1910.9%2C20.0%20L1998.6%2C27.0%20L2088.2%2C45.7%20L2178.1%2C76.7%20L2266.7%2C120.3%20L2352.4%2C176.8%20L2433.5%2C246.2%20L2508.0%2C328.3%20L2574.1%2C422.7%20L2629.9%2C528.7%20L2673.8%2C645.2%20L2703.7%2C771.0%20L2718.3%2C904.6%20L2715.9%2C1044.3%20L2695.2%2C1188.0%20L2655.1%2C1333.5%20L2594.9%2C1478.2%20L2513.9%2C1619.7%20L2412.0%2C1754.9%20L2289.4%2C1881.1%20L2146.4%2C1995.3%20L1984.2%2C2094.3%20L1804.0%2C2175.3%20L1607.7%2C2235.4%20L1397.5%2C2271.7%20L1176.0%2C2281.8%20L946.3%2C2263.4%20L711.8%2C2214.5%20L476.5%2C2133.5%20L244.4%2C2019.3%20L20.0%2C1871.4%27%20fill%3D%27none%27%20stroke%3D%27%23D4AF37%27%20stroke-width%3D%2718%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position: center;
+    background-size: 640px 538px;
+  }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% 20%, var(--board-line) 0, transparent 45%),
+      radial-gradient(circle at 80% 60%, var(--board-line) 0, transparent 40%),
+      var(--board);
+    font-family:'Nunito', sans-serif;
+    color: var(--ink);
+    padding: 32px 16px 60px;
+  }
+  .wrap{ width:100%; max-width: 620px; margin: 0 auto; position:relative; z-index:1; }
+  .eyebrow-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 4px; }
+  .spiral-icon{ width:26px; height:26px; flex-shrink:0; opacity:.9; }
+  h1.eyebrow{
+    font-family:'Patrick Hand', cursive;
+    color: var(--gold);
+    text-align:center;
+    font-size: 2rem;
+    margin: 0;
+  }
+  .sub{ text-align:center; color:#E7DFC7; font-weight:700; margin:0 0 6px; }
+  .tagline{
+    font-family:'EB Garamond', serif;
+    font-style: italic;
+    text-align:center;
+    color:#E7DFC7;
+    font-weight:600;
+    font-size: 1.05rem;
+    margin:0 0 18px;
+    opacity:.9;
+  }
+  .badgebar{ display:flex; justify-content:center; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+  .badge{
+    background: var(--gold); color:#4A3200; font-weight:800; font-size:.82rem;
+    padding: 6px 14px; border-radius:999px;
+  }
+  .card{
+    background: var(--card);
+    border-radius: 8px;
+    padding: 28px 24px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    position:relative;
+  }
+  .pin{
+    position:absolute; top:-10px; left:50%; transform: translateX(-50%);
+    width:18px; height:18px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #f0d67a, var(--gold));
+    box-shadow: 0 3px 6px rgba(0,0,0,.4);
+  }
+  label{
+    display:block; font-weight:800; font-size:.8rem; text-transform:uppercase;
+    letter-spacing:.06em; color:#5c6b60; margin: 0 0 6px;
+  }
+  input[type=text], input[type=password], select{
+    width:100%; font-family:'Nunito',sans-serif; font-size:1rem;
+    padding:12px 14px; border:2px solid var(--line); border-radius:8px; background:#fff; color: var(--ink);
+  }
+  input:focus, select:focus{ outline:none; border-color: var(--accent); }
+  button{
+    margin-top:20px; width:100%; padding:14px; font-family:'Nunito',sans-serif;
+    font-size:1.05rem; font-weight:800; color:#fff; background: var(--accent);
+    border:none; border-radius:10px; cursor:pointer; transition: transform .08s, background .15s;
+  }
+  button:hover:not(:disabled){ background: var(--accent-dark); }
+  button:active:not(:disabled){ transform: scale(.98); }
+  button:disabled{ opacity:.55; cursor:not-allowed; }
+  button.secondary{ background:#5c6b60; }
+  button.secondary:hover{ background:#465049; }
+
+  .msg{ margin-top:16px; padding:12px 14px; border-radius:8px; font-weight:700; font-size:.92rem; display:none; }
+  .msg.ok{ display:block; background:#E4F0E6; color: var(--ok); }
+  .msg.error{ display:block; background:#FBE4E1; color: var(--error); }
+  .msg.info{ display:block; background:#EFEAD9; color:#5c6b60; }
+
+  .empty{ text-align:center; color:#5c6b60; font-weight:700; padding: 12px 0; }
+
+  .back-link{
+    display:block; text-align:center; font-weight:700; font-size:.85rem;
+    color:#E7DFC7; text-decoration:none; margin:0 0 14px; opacity:.85;
+  }
+  .back-link:hover{ opacity:1; text-decoration:underline; }
+
+  /* --------------------------- grade + toolbar --------------------------- */
+  .toolbar{ display:flex; align-items:flex-end; gap:12px; margin-bottom:4px; }
+  .toolbar > div{ flex:1; }
+  .toolbar label{ margin-bottom:6px; }
+
+  /* ------------------------------ question list --------------------------- */
+  .qlist{ list-style:none; margin: 18px 0 0; padding:0; }
+  .qrow{
+    display:flex; align-items:flex-start; gap:14px;
+    background:#fff; border:2px solid var(--line); border-radius:10px;
+    padding: 14px 16px; margin-bottom:10px;
+    transition: border-color .15s, background .15s;
+  }
+  .qrow.is-excluded{ background:#FBEDEA; border-color:#E9BEB2; }
+  .qrow-text{ flex:1; min-width:0; }
+  .qrow-student{
+    font-weight:800; font-size:.72rem; text-transform:uppercase; letter-spacing:.05em;
+    color:#5c6b60; margin:0 0 4px;
+  }
+  .qrow-question{ font-weight:600; line-height:1.4; margin:0; }
+  .qrow-status{
+    display:inline-block; margin-top:8px; font-size:.7rem; font-weight:800;
+    text-transform:uppercase; letter-spacing:.04em; color: var(--error);
+  }
+
+  /* Toggle switch: checked = excluded (hidden from voting), unchecked =
+     included (normal/default). Built on a plain checkbox for accessibility
+     (keyboard + screen readers) with CSS doing the visual switch styling. */
+  .toggle-wrap{ display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
+  .toggle-caption{
+    font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#5c6b60;
+  }
+  .toggle{ position:relative; display:inline-block; width:44px; height:24px; }
+  .toggle input{ position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; }
+  .toggle-track{
+    position:absolute; inset:0; background:#c9c2ae; border-radius:999px;
+    transition: background .15s;
+  }
+  .toggle-thumb{
+    position:absolute; top:2px; left:2px; width:20px; height:20px;
+    background:#fff; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,.35);
+    transition: transform .15s;
+  }
+  .toggle input:checked ~ .toggle-track{ background: var(--error); }
+  .toggle input:checked ~ .toggle-track .toggle-thumb{ transform: translateX(20px); }
+  .toggle input:focus-visible ~ .toggle-track{ outline:2px solid var(--accent); outline-offset:2px; }
+  .toggle input:disabled{ cursor:not-allowed; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="eyebrow-row">
+    <svg class="spiral-icon" viewBox="0 0 44 44" aria-hidden="true">
+      <path d="M22.7,23.4 L22.8,23.5 L23.0,23.7 L23.1,23.9 L23.2,24.2 L23.2,24.4 L23.1,24.7 L23.0,25.0 L22.8,25.2 L22.6,25.5 L22.3,25.7 L21.9,25.8 L21.5,25.9 L21.1,25.9 L20.6,25.7 L20.2,25.5 L19.8,25.2 L19.4,24.7 L19.2,24.2 L19.0,23.6 L18.9,22.9 L19.1,22.2 L19.3,21.4 L19.8,20.7 L20.4,20.1 L21.2,19.6 L22.2,19.2 L23.2,19.1 L24.4,19.1 L25.6,19.4 L26.7,20.0 L27.8,20.9 L28.7,22.1 L29.5,23.5 L29.9,25.1 L30.0,26.9 L29.7,28.8 L29.0,30.7 L27.8,32.5 L26.1,34.2 L24.0,35.5 L21.6,36.5 L18.8,36.9 L15.8,36.8"
+            fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <h1 class="eyebrow">Review Questions</h1>
+  </div>
+  <p class="tagline">Keep the board on-topic before students start voting.</p>
+  <p class="sub" id="subline">&nbsp;</p>
+  <div class="badgebar" id="badgebar"></div>
+
+  <a class="back-link" id="backLink" href="admin.html">&larr; Back to Admin</a>
+
+  <div class="card">
+    <div class="pin"></div>
+    <div id="content">Loading&hellip;</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+ * CONFIG — EDIT THESE TWO LINES ONLY (same values as the other pages)
+ * ==========================================================================*/
+const SUPABASE_URL = "https://mpdmxvqaryjvdxrajigy.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wZG14dnFhcnlqdmR4cmFqaWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDcyODksImV4cCI6MjEwMTIyMzI4OX0.3ZioZpF0hMMwbyiD30-MZ0PERxbO7U7kFokNWxSI2ko";
+/* ==========================================================================*/
+
+const contentEl  = document.getElementById('content');
+const sublineEl  = document.getElementById('subline');
+const badgebarEl = document.getElementById('badgebar');
+
+function showLoadError(message) {
+  sublineEl.textContent = '';
+  contentEl.innerHTML = `<p class="empty">${message}</p>`;
+  console.error(message);
+}
+
+// Dynamically loads a <script> tag and resolves once it's actually loaded
+// (or rejects if it fails) — same helper as the other three pages.
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+// Falls back to unpkg if jsdelivr is blocked (school-network guardrail),
+// same pattern as admin.html/voting.html/submission.html.
+async function ensureSupabaseLibrary() {
+  if (window.supabase) return true;
+  try {
+    await loadScript('https://unpkg.com/@supabase/supabase-js@2');
+  } catch (err) {
+    console.error(err);
+  }
+  return !!window.supabase;
+}
+
+(async function main() {
+  const loaded = await ensureSupabaseLibrary();
+  if (!loaded) {
+    showLoadError('Could not load a required script. Check your internet connection and try again.');
+    return;
+  }
+
+  const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Points "Back to Admin" at admin.html in the same folder this page was
+  // loaded from, so it still works wherever the site is hosted.
+  document.getElementById('backLink').href = getBaseUrl() + 'admin.html';
+  function getBaseUrl() {
+    return window.location.href.replace(/[^\/]*$/, '');
+  }
+
+  /* --------------------------------------------------------------------
+   * SESSION — shares the exact same sessionStorage key/shape as
+   * admin.html, so navigating here from the admin sidebar in the same
+   * browser tab carries the login over automatically. Opening this page
+   * in a separate tab (or a browser that clears storage between tabs)
+   * will ask for the passphrase again, same as admin.html would.
+   * ------------------------------------------------------------------*/
+  const ADMIN_SESSION_HOURS = 8;
+  const SESSION_KEY = 'qb_admin_session';
+
+  function saveSession(value) {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      passphrase: value,
+      expiresAt: Date.now() + ADMIN_SESSION_HOURS * 60 * 60 * 1000
+    }));
+  }
+  function loadSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed.expiresAt || Date.now() > parsed.expiresAt) {
+        sessionStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+      return parsed.passphrase;
+    } catch (err) {
+      return null;
+    }
+  }
+  function clearSession() {
+    sessionStorage.removeItem(SESSION_KEY);
+  }
+
+  let passphrase = null;
+  let currentGrade = '3';
+
+  async function init() {
+    const remembered = loadSession();
+    if (remembered) {
+      const ok = await tryPassphrase(remembered);
+      if (ok) { passphrase = remembered; renderDashboard(); return; }
+      clearSession(); // stale/invalid — fall through to the login form
+    }
+    renderLogin();
+  }
+
+  // Same check admin.html uses: fn_get_rounds doubles as a passphrase
+  // check, since it's admin-gated and cheap to call with a throwaway grade.
+  async function tryPassphrase(value) {
+    try {
+      const { error } = await dbClient.rpc('fn_get_rounds', { p_passphrase: value, p_grade: '3' });
+      return !error;
+    } catch (err) {
+      console.error('Passphrase check failed:', err);
+      return false;
+    }
+  }
+
+  function renderLogin() {
+    sublineEl.textContent = 'Enter the admin passphrase to continue.';
+    badgebarEl.innerHTML = '';
+    contentEl.innerHTML = `
+      <label for="passInput">Admin Passphrase</label>
+      <input type="password" id="passInput" autocomplete="off">
+      <button id="unlockBtn">Unlock</button>
+      <div class="msg" id="loginMsg"></div>
+    `;
+    const passInput = document.getElementById('passInput');
+    passInput.focus();
+    passInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptUnlock(); });
+    document.getElementById('unlockBtn').addEventListener('click', attemptUnlock);
+  }
+
+  async function attemptUnlock() {
+    const loginMsg = document.getElementById('loginMsg');
+    const value = document.getElementById('passInput').value;
+    loginMsg.className = 'msg';
+
+    if (!value) {
+      loginMsg.className = 'msg error';
+      loginMsg.textContent = 'Enter the passphrase first.';
+      return;
+    }
+
+    const unlockBtn = document.getElementById('unlockBtn');
+    unlockBtn.disabled = true;
+    unlockBtn.textContent = 'Checking…';
+
+    const ok = await tryPassphrase(value);
+
+    unlockBtn.disabled = false;
+    unlockBtn.textContent = 'Unlock';
+
+    if (!ok) {
+      loginMsg.className = 'msg error';
+      loginMsg.textContent = 'Incorrect passphrase, or the page could not reach the database.';
+      return;
+    }
+
+    passphrase = value;
+    saveSession(value);
+    renderDashboard();
+  }
+
+  function renderDashboard() {
+    sublineEl.textContent = 'Toggle a question off to hide it from voting.';
+    badgebarEl.innerHTML = `<span class="badge">Grade ${currentGrade}</span>`;
+
+    contentEl.innerHTML = `
+      <div class="toolbar">
+        <div>
+          <label for="gradeSelect">Grade</label>
+          <select id="gradeSelect">
+            <option value="3">Grade 3</option>
+            <option value="4">Grade 4</option>
+            <option value="5">Grade 5</option>
+            <option value="6">Grade 6</option>
+          </select>
+        </div>
+      </div>
+      <div class="msg" id="listMsg"></div>
+      <div id="listArea"><p class="empty">Loading questions&hellip;</p></div>
+    `;
+
+    const gradeSelect = document.getElementById('gradeSelect');
+    gradeSelect.value = currentGrade;
+    gradeSelect.addEventListener('change', () => {
+      currentGrade = gradeSelect.value;
+      badgebarEl.innerHTML = `<span class="badge">Grade ${currentGrade}</span>`;
+      loadQuestions();
+    });
+
+    loadQuestions();
+  }
+
+  async function loadQuestions() {
+    const listArea = document.getElementById('listArea');
+    const listMsg  = document.getElementById('listMsg');
+    listMsg.className = 'msg';
+    listArea.innerHTML = '<p class="empty">Loading questions&hellip;</p>';
+
+    const { data, error } = await dbClient.rpc('fn_list_questions_for_grade', {
+      p_passphrase: passphrase,
+      p_grade: currentGrade
+    });
+
+    if (error) {
+      listMsg.className = 'msg error';
+      listMsg.textContent = error.message || 'Could not load questions.';
+      listArea.innerHTML = '';
+      console.error('fn_list_questions_for_grade error:', error);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      listArea.innerHTML = '<p class="empty">No questions submitted for this grade yet.</p>';
+      return;
+    }
+
+    listArea.innerHTML = `<ul class="qlist">${data.map(rowHtml).join('')}</ul>`;
+
+    listArea.querySelectorAll('.toggle input').forEach(input => {
+      input.addEventListener('change', () => setExcluded(input));
+    });
+  }
+
+  function rowHtml(q) {
+    return `
+      <li class="qrow ${q.excluded ? 'is-excluded' : ''}" data-id="${q.id}">
+        <div class="qrow-text">
+          <p class="qrow-student">Student ${escapeHtml(q.student_id)}</p>
+          <p class="qrow-question">${escapeHtml(q.question)}</p>
+          ${q.excluded ? '<span class="qrow-status">Excluded — hidden from voting</span>' : ''}
+        </div>
+        <div class="toggle-wrap">
+          <span class="toggle-caption">Exclude</span>
+          <label class="toggle">
+            <input type="checkbox" data-id="${q.id}" ${q.excluded ? 'checked' : ''}>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </label>
+        </div>
+      </li>
+    `;
+  }
+
+  async function setExcluded(input) {
+    const id = Number(input.dataset.id);
+    const nextExcluded = input.checked;
+    const row = input.closest('.qrow');
+    const listMsg = document.getElementById('listMsg');
+    listMsg.className = 'msg';
+
+    input.disabled = true;
+
+    const { error } = await dbClient.rpc('fn_set_question_excluded', {
+      p_passphrase: passphrase,
+      p_question_id: id,
+      p_excluded: nextExcluded
+    });
+
+    input.disabled = false;
+
+    if (error) {
+      // Revert the toggle visually since the database didn't accept it.
+      input.checked = !nextExcluded;
+      listMsg.className = 'msg error';
+      listMsg.textContent = error.message || 'Could not update this question. Please try again.';
+      console.error('fn_set_question_excluded error:', error);
+      return;
+    }
+
+    row.classList.toggle('is-excluded', nextExcluded);
+    let statusEl = row.querySelector('.qrow-status');
+    if (nextExcluded && !statusEl) {
+      statusEl = document.createElement('span');
+      statusEl.className = 'qrow-status';
+      statusEl.textContent = 'Excluded — hidden from voting';
+      row.querySelector('.qrow-text').appendChild(statusEl);
+    } else if (!nextExcluded && statusEl) {
+      statusEl.remove();
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  init();
+
+})(); // end of main()
+</script>
+
+</body>
+</html>
